@@ -39,9 +39,11 @@
   #colorPop { position: fixed; right: 70px; bottom: 128px; z-index: 35; background: #000000cc; border: 1px solid #ffffff44; border-radius: 14px; padding: 10px; display: none; }
   #colorPop.show { display: flex; gap: 8px; flex-wrap: wrap; width: 190px; }
   #colorPop .sw { width: 38px; height: 38px; }
-  .joy { position: fixed; width: 116px; height: 116px; border-radius: 50%; z-index: 15; touch-action: none; display: none; left: 16px; bottom: 16px; }
-  .joy .base { position: absolute; inset: 0; border-radius: 50%; background: #ffffff14; border: 3px solid #ffffff88; }
-  .joy .knob { position: absolute; width: 52px; height: 52px; left: 32px; top: 32px; border-radius: 50%; background: #ffffffcc; box-shadow: 0 4px 10px #0007; }
+  #dpad { position: fixed; left: 20px; bottom: 24px; z-index: 16; display: none; grid-template-columns: repeat(3, 64px); grid-template-rows: repeat(3, 64px); gap: 7px; touch-action: none; }
+  #dpad.show { display: grid; }
+  .dbtn { display: flex; align-items: center; justify-content: center; font-size: 28px; color: #fff; background: radial-gradient(circle at 35% 30%, #5a6a9a, #2c3350); border: 2px solid #ffffff55; border-radius: 15px; user-select: none; touch-action: none; box-shadow: 0 3px 10px #0007; }
+  .dbtn:active, .dbtn.on { transform: scale(.92); background: radial-gradient(circle at 35% 30%, #8ea0d6, #45507a); }
+  #btnU { grid-column: 2; grid-row: 1; } #btnL { grid-column: 1; grid-row: 2; } #btnR { grid-column: 3; grid-row: 2; } #btnD { grid-column: 2; grid-row: 3; }
   .sw { position: relative; display: flex; align-items: center; justify-content: center; }
   .sw.locked { filter: grayscale(.6) brightness(.6); } .sw .lk { font-size: 20px; }
   .mtop { display: flex; flex-direction: column; align-items: center; gap: 8px; }
@@ -75,8 +77,8 @@
 <button id="musBtn" class="cornerBtn" title="Музыка">🎵</button>
 <button id="fsBtn" class="cornerBtn" title="На весь экран">⛶</button>
 <div id="colorPop"></div>
-<!-- джойстик (телефон) -->
-<div class="joy hidden" id="joy0"><div class="base"></div><div class="knob"></div></div>
+<!-- крестовина управления (телефон), как в Паучьем лабиринте -->
+<div id="dpad"><div class="dbtn" id="btnU">▲</div><div class="dbtn" id="btnL">◀</div><div class="dbtn" id="btnR">▶</div><div class="dbtn" id="btnD">▼</div></div>
 <!-- выход в меню -->
 <button id="menuBtn" class="hidden">🏠 В меню</button>
 
@@ -91,7 +93,7 @@
   <div class="mbot">
     <div class="swatches" id="swatches"></div>
     <div class="row"><button class="btn green" id="playBtn">▶ Играть</button><button class="btn red" id="achBtn">🏆 Достижения</button></div>
-    <div class="sub" style="opacity:.6;font-size:12px">Телефон: джойстик снизу слева. Компьютер: мышь или WASD/стрелки.</div>
+    <div class="sub" style="opacity:.6;font-size:12px">Телефон: кнопки-стрелки ▲◀▶▼ снизу слева. Компьютер: мышь или WASD/стрелки.</div>
   </div>
 </div>
 
@@ -287,21 +289,20 @@ renderer.domElement.addEventListener('pointerdown', e => { ptr.active = true; pt
 renderer.domElement.addEventListener('pointermove', e => { ptr.x = e.clientX; ptr.y = e.clientY; if (e.pointerType !== 'touch') ptr.active = true; });
 renderer.domElement.addEventListener('pointerup', e => { if (e.pointerType === 'touch') ptr.active = false; });
 renderer.domElement.addEventListener('pointerleave', () => { if (!ptr.touch) ptr.active = false; });
-// джойстик (телефон) — как в «Вечеринке чемпионов»
-const joyVec = { x: 0, y: 0 };
-(function setupJoy() {
-  const box = el('joy0'), knob = box.querySelector('.knob'); let id = null, cx = 0, cy = 0;
-  box.addEventListener('pointerdown', e => { id = e.pointerId; const r = box.getBoundingClientRect(); cx = r.left + r.width / 2; cy = r.top + r.height / 2; box.setPointerCapture(id); mv(e); e.stopPropagation(); });
-  box.addEventListener('pointermove', e => { if (e.pointerId === id) { mv(e); e.stopPropagation(); } });
-  const end = e => { if (e.pointerId === id) { id = null; joyVec.x = 0; joyVec.y = 0; knob.style.left = '32px'; knob.style.top = '32px'; } };
-  box.addEventListener('pointerup', end); box.addEventListener('pointercancel', end);
-  function mv(e) { let dx = e.clientX - cx, dy = e.clientY - cy; const L = Math.hypot(dx, dy), max = 40; if (L > max) { dx = dx / L * max; dy = dy / L * max; } joyVec.x = dx / max; joyVec.y = dy / max; knob.style.left = (32 + dx) + 'px'; knob.style.top = (32 + dy) + 'px'; }
-})();
-function showJoy(on) { el('joy0').style.display = (on && matchMedia('(pointer:coarse)').matches) ? 'block' : 'none'; }
+// крестовина (D-pad) — как в «Паучьем лабиринте»: держишь кнопку — едешь
+const dpad = { u: 0, d: 0, l: 0, r: 0 };
+function bindDpad(id, key) {
+  const e = el(id);
+  const press = ev => { ev.preventDefault(); try { e.setPointerCapture(ev.pointerId); } catch (_) {} dpad[key] = 1; e.classList.add('on'); };
+  const release = () => { dpad[key] = 0; e.classList.remove('on'); };
+  e.addEventListener('pointerdown', press); e.addEventListener('pointerup', release);
+  e.addEventListener('pointercancel', release); e.addEventListener('lostpointercapture', release);
+}
+bindDpad('btnU', 'u'); bindDpad('btnD', 'd'); bindDpad('btnL', 'l'); bindDpad('btnR', 'r');
+const IS_TOUCH = ('ontouchstart' in window) || navigator.maxTouchPoints > 0 || matchMedia('(pointer:coarse)').matches;
+function showJoy(on) { el('dpad').classList.toggle('show', !!(on && IS_TOUCH)); if (!on) { dpad.u = dpad.d = dpad.l = dpad.r = 0; } }
 function playerDir() {
-  const jl = Math.hypot(joyVec.x, joyVec.y);
-  if (jl > 0.12) return { x: joyVec.x / Math.max(jl, 1), z: joyVec.y / Math.max(jl, 1) };
-  let dx = 0, dz = 0;
+  let dx = dpad.r - dpad.l, dz = dpad.d - dpad.u;
   if (keys.has('KeyW') || keys.has('ArrowUp')) dz -= 1;
   if (keys.has('KeyS') || keys.has('ArrowDown')) dz += 1;
   if (keys.has('KeyA') || keys.has('ArrowLeft')) dx -= 1;
@@ -594,6 +595,8 @@ window.__dbg = {
   unlockAll: () => { ACHS.forEach(a => Ach.done.add(a.id)); Ach.done.add('secret'); Ach.save(); updateAchCount(); },
   achReset: () => { Ach.stats = { botsEaten: 0, trashEaten: 0, lollisEaten: 0, boostsUsed: 0, maxSize: 0, safeUsed: 0, wins: 0 }; Ach.done.clear(); Ach.save(); updateAchCount(); },
   setColor: (i) => { chosenColor = i; },
+  setPad: (k, v) => { dpad[k] = v; },
+  pos: () => ({ x: Math.round(player.x * 10) / 10, z: Math.round(player.z * 10) / 10 }),
 };
 
 showMenu();
