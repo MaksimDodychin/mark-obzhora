@@ -34,6 +34,7 @@
   .hidden { display: none !important; }
   #confetti { position: fixed; inset: 0; z-index: 19; pointer-events: none; }
   .cornerBtn { position: fixed; right: 12px; z-index: 30; width: 48px; height: 48px; border-radius: 14px; background: #00000066; border: 1px solid #ffffff44; color: #fff; font-size: 22px; cursor: pointer; }
+  #menuBtn { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 31; padding: 9px 16px; border-radius: 12px; background: #00000088; border: 1px solid #ffffff55; color: #fff; font-weight: 800; font-size: 15px; cursor: pointer; }
   #fsBtn { bottom: 12px; } #musBtn { bottom: 70px; } #colorBtn { bottom: 128px; }
   #colorPop { position: fixed; right: 70px; bottom: 128px; z-index: 35; background: #000000cc; border: 1px solid #ffffff44; border-radius: 14px; padding: 10px; display: none; }
   #colorPop.show { display: flex; gap: 8px; flex-wrap: wrap; width: 190px; }
@@ -76,6 +77,8 @@
 <div id="colorPop"></div>
 <!-- джойстик (телефон) -->
 <div class="joy hidden" id="joy0"><div class="base"></div><div class="knob"></div></div>
+<!-- выход в меню -->
+<button id="menuBtn" class="hidden">🏠 В меню</button>
 
 <!-- МЕНЮ -->
 <div id="menu" class="screen">
@@ -125,12 +128,12 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const dist2 = (ax, az, bx, bz) => Math.hypot(ax - bx, az - bz);
 
 // ==== параметры игры ====
-const ARENA = 42;           // половина размера кухни
+const ARENA = 30;           // половина размера кухни (просторная комната)
 const START = 10;           // стартовый размер
 const SHIELD = 500;         // до этого размера — защита, нельзя съесть
-const BOT_N = 12;
-const PELLET_N = 200;
-const BOOST_N = 8;
+const BOT_N = 11;
+const PELLET_N = 180;
+const BOOST_N = 7;
 const LOLLI_N = 2;
 const rOf = s => Math.sqrt(s) * 0.32;   // размер → радиус
 const BASE = [
@@ -166,15 +169,48 @@ function tileTexture() {
   x.strokeStyle = '#aeb6c4'; x.lineWidth = 4; x.strokeRect(0, 0, 128, 128);
   const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(ARENA / 3, ARENA / 3); return t;
 }
+// текстура кухонной стены (высокая): обои + окно сверху, кухонная полоса внизу
+function wallTexture() {
+  const c = document.createElement('canvas'); c.width = 128; c.height = 512; const x = c.getContext('2d');
+  x.fillStyle = '#e7ddc9'; x.fillRect(0, 0, 128, 512);                         // обои
+  // окно (верхняя часть стены)
+  x.fillStyle = '#eef2f4'; x.fillRect(28, 120, 72, 96); x.fillStyle = '#9fd0ef'; x.fillRect(34, 126, 60, 84);
+  x.strokeStyle = '#eef2f4'; x.lineWidth = 6; x.beginPath(); x.moveTo(64, 126); x.lineTo(64, 210); x.moveTo(34, 168); x.lineTo(94, 168); x.stroke();
+  // верхние шкафчики (над столешницей)
+  x.fillStyle = '#b9885a'; x.fillRect(6, 388, 116, 40); x.strokeStyle = '#8a5f38'; x.lineWidth = 3; x.strokeRect(10, 391, 52, 34); x.strokeRect(66, 391, 52, 34);
+  // столешница
+  x.fillStyle = '#3a2f28'; x.fillRect(0, 430, 128, 14);
+  // нижние шкафы
+  x.fillStyle = '#b9885a'; x.fillRect(0, 444, 128, 68); x.strokeStyle = '#8a5f38'; x.lineWidth = 3; x.strokeRect(6, 449, 52, 58); x.strokeRect(70, 449, 52, 58);
+  x.fillStyle = '#5a4326'; x.fillRect(48, 456, 8, 12); x.fillRect(72, 456, 8, 12);
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(7, 1); return t;
+}
+function ceilTexture() {
+  const c = document.createElement('canvas'); c.width = 128; c.height = 128; const x = c.getContext('2d');
+  x.fillStyle = '#f3f1ec'; x.fillRect(0, 0, 128, 128); x.strokeStyle = '#e2ded4'; x.lineWidth = 3; x.strokeRect(2, 2, 124, 124);
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(ARENA / 7, ARENA / 7); return t;
+}
+const WALLH = 27, CEIL = 29;
 const kitchen = new THREE.Group(); scene.add(kitchen);
 const floor = new THREE.Mesh(new THREE.BoxGeometry(ARENA * 2, 1, ARENA * 2), new THREE.MeshStandardMaterial({ map: tileTexture(), roughness: .95 }));
 floor.position.y = -0.5; floor.receiveShadow = true; kitchen.add(floor);
-for (const [sx, sz, w, d] of [[0, 1, 1, 0], [0, -1, 1, 0], [1, 0, 0, 1], [-1, 0, 0, 1]]) {
-  const wall = new THREE.Mesh(new THREE.BoxGeometry(w ? ARENA * 2 + 4 : 2, 3, d ? ARENA * 2 + 4 : 2), new THREE.MeshStandardMaterial({ color: 0x8a6b4a, roughness: .9 }));
-  wall.position.set(sx * (ARENA + 1), 1, sz * (ARENA + 1)); wall.receiveShadow = true; kitchen.add(wall);
+// стены-кухня (высокие, с мебелью на текстуре)
+const wallMat = new THREE.MeshStandardMaterial({ map: wallTexture(), roughness: .9 });
+for (const [sx, sz, horiz] of [[0, 1, 1], [0, -1, 1], [1, 0, 0], [-1, 0, 0]]) {
+  const wall = new THREE.Mesh(new THREE.BoxGeometry(horiz ? ARENA * 2 + 4 : 1.5, WALLH, horiz ? 1.5 : ARENA * 2 + 4), wallMat);
+  wall.position.set(sx * (ARENA + 0.7), WALLH / 2 - 0.5, sz * (ARENA + 0.7)); kitchen.add(wall);
 }
+// потолок + лампа
+const ceiling = new THREE.Mesh(new THREE.BoxGeometry(ARENA * 2 + 4, 0.4, ARENA * 2 + 4), new THREE.MeshStandardMaterial({ map: ceilTexture(), roughness: 1 }));
+ceiling.position.y = CEIL; kitchen.add(ceiling);
+(function ceilingLamp() {
+  const cord = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.6, 6), new THREE.MeshStandardMaterial({ color: 0x333333 })); cord.position.set(0, CEIL - 0.8, 0); kitchen.add(cord);
+  const shade = new THREE.Mesh(new THREE.ConeGeometry(2.2, 1.4, 20, 1, true), new THREE.MeshStandardMaterial({ color: 0xf2f2f2, emissive: 0xffe9b0, emissiveIntensity: .5, side: THREE.DoubleSide })); shade.position.set(0, CEIL - 2.0, 0); kitchen.add(shade);
+  const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.4, 12, 12), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffe9a0, emissiveIntensity: 1 })); bulb.position.set(0, CEIL - 2.4, 0); kitchen.add(bulb);
+  const lamp = new THREE.PointLight(0xfff2d0, 0.6, 90); lamp.position.set(0, CEIL - 2.5, 0); kitchen.add(lamp);
+})();
 // 🏠 гостиная — безопасная комната (здесь игрока не съесть)
-const SAFE = { x0: ARENA - 20, z0: ARENA - 20, x1: ARENA - 3, z1: ARENA - 3 };
+const SAFE = { x0: ARENA - 12, z0: ARENA - 12, x1: ARENA - 3, z1: ARENA - 3 };
 (function buildSafeRoom() {
   const cx = (SAFE.x0 + SAFE.x1) / 2, cz = (SAFE.z0 + SAFE.z1) / 2, w = SAFE.x1 - SAFE.x0, d = SAFE.z1 - SAFE.z0;
   const rug = new THREE.Mesh(new THREE.BoxGeometry(w, 0.14, d), new THREE.MeshStandardMaterial({ color: 0x6a4bb0, roughness: .95 })); rug.position.set(cx, 0.08, cz); rug.receiveShadow = true; kitchen.add(rug);
@@ -375,12 +411,13 @@ function swallow(eater, prey) {
 
 // ==== камера следует за игроком, отдаляется при росте ====
 function updateCamera(dt) {
-  const H = 16 + player.r * 3.4;
-  const tx = player.x, ty = H, tz = player.z + H * 0.62;
+  const H = clamp(12 + player.r * 2.2, 12, 26);        // отдаляется при росте, но ниже потолка (29) и стен (27)
+  let tx = player.x, tz = player.z + H * 0.5;
+  const lim = ARENA - 2.5; tx = clamp(tx, -lim, lim); tz = clamp(tz, -lim, lim);   // камера всегда внутри комнаты
   camera.position.x += (tx - camera.position.x) * Math.min(1, dt * 4);
-  camera.position.y += (ty - camera.position.y) * Math.min(1, dt * 4);
+  camera.position.y += (H - camera.position.y) * Math.min(1, dt * 4);
   camera.position.z += (tz - camera.position.z) * Math.min(1, dt * 4);
-  camera.lookAt(player.x, 0, player.z);
+  camera.lookAt(player.x, 0.5, player.z);
 }
 
 // ==== HUD ====
@@ -406,7 +443,7 @@ function refreshPreview() {
 function showMenu() {
   state = 'menu'; playing = false; fadeBig();
   el('menu').classList.remove('hidden'); el('achv').classList.add('hidden'); el('hud').classList.add('hidden'); el('hint').classList.add('hidden');
-  el('colorBtn').classList.add('hidden'); el('colorPop').classList.remove('show'); showJoy(false);
+  el('colorBtn').classList.add('hidden'); el('menuBtn').classList.add('hidden'); el('colorPop').classList.remove('show'); showJoy(false);
   Sound.stopMusic(); kitchen.visible = false; crown.visible = false; scene.background = new THREE.Color(0x14283a); scene.fog.far = 200;
   camera.position.set(0, 2.7, 8.2); camera.lookAt(0, 1.3, 0);
   refreshPreview(); buildSwatches(); updateAchCount();
@@ -416,7 +453,7 @@ function showMenu() {
 function startGame(col) {
   chosenColor = col != null ? col : chosenColor; state = 'play'; playing = true; won = false;
   el('menu').classList.add('hidden'); el('achv').classList.add('hidden'); el('hud').classList.remove('hidden'); el('hint').classList.remove('hidden');
-  el('colorBtn').classList.remove('hidden'); el('colorPop').classList.remove('show'); showJoy(true);
+  el('colorBtn').classList.remove('hidden'); el('menuBtn').classList.remove('hidden'); el('colorPop').classList.remove('show'); showJoy(true);
   el('hint').textContent = '🛡 Расти до 500 под защитой, потом съешь всех!';
   kitchen.visible = true; if (previewVac) previewVac.visible = false;
   scene.background = new THREE.Color(0x11202f); scene.fog.far = 130;
@@ -537,6 +574,7 @@ el('playBtn').onclick = () => { Sound.init(); goFS(); startGame(chosenColor); };
 el('achBtn').onclick = () => { Sound.init(); el('menu').classList.add('hidden'); el('achv').classList.remove('hidden'); buildAchScreen(); };
 el('achBack').onclick = () => { el('achv').classList.add('hidden'); el('menu').classList.remove('hidden'); buildSwatches(); };
 el('fsBtn').onclick = () => { if (document.fullscreenElement) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); } else goFS(); };
+el('menuBtn').onclick = () => { Sound.init(); showMenu(); };
 el('colorBtn').onclick = () => { Sound.init(); const pop = el('colorPop'); const show = !pop.classList.contains('show'); if (show) buildColorPop(); pop.classList.toggle('show', show); };
 function updateMusBtn() { el('musBtn').textContent = Sound.musicIsOn() ? '🎵' : '🔇'; }
 el('musBtn').onclick = () => { Sound.init(); const on = !Sound.musicIsOn(); Sound.setMusic(on); try { localStorage.setItem('obzhora_music', JSON.stringify(on)); } catch (e) {} if (on && playing) Sound.startMusic(); updateMusBtn(); };
