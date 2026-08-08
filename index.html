@@ -32,6 +32,14 @@
   #bigMsg { position: fixed; top: 42%; left: 50%; transform: translate(-50%,-50%); z-index: 11; font-size: clamp(26px, 7vw, 60px); font-weight: 900; text-shadow: 0 5px 0 #0007, 0 0 30px #000; pointer-events: none; opacity: 0; text-align: center; }
   #hint { position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%); z-index: 11; background: #000000aa; padding: 8px 18px; border-radius: 999px; font-size: 14px; pointer-events: none; max-width: 92vw; text-align: center; }
   .hidden { display: none !important; }
+  #resultCard { position: fixed; left: 50%; top: 50%; transform: translate(-50%,-50%); z-index: 22;
+    background: #0b1424f2; border: 2px solid #ffe14d88; border-radius: 18px; padding: 16px 22px;
+    min-width: 260px; max-width: 92vw; box-shadow: 0 16px 44px #000b; text-align: center; }
+  #resultCard h2 { margin: 0 0 6px; font-size: clamp(20px,5vw,30px); }
+  #resultCard .row { display: flex; justify-content: space-between; gap: 14px; font-size: 15px;
+    padding: 4px 8px; border-radius: 8px; }
+  #resultCard .row.me { background: #ffe14d22; color: #ffe14d; font-weight: 900; }
+  #resultCard .sub2 { margin-top: 10px; font-size: 13px; opacity: .85; }
   #confetti { position: fixed; inset: 0; z-index: 19; pointer-events: none; }
   .cornerBtn { position: fixed; right: 12px; z-index: 30; width: 48px; height: 48px; border-radius: 14px; background: #00000066; border: 1px solid #ffffff44; color: #fff; font-size: 22px; cursor: pointer; }
   #menuBtn { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 31; padding: 9px 16px; border-radius: 12px; background: #00000088; border: 1px solid #ffffff55; color: #fff; font-weight: 800; font-size: 15px; cursor: pointer; }
@@ -108,10 +116,12 @@
 <div id="hud" class="hidden">
   <div>
     <div class="card" id="sizeCard">Размер: 10</div>
+    <div class="card" id="timeCard" style="margin-top:6px;font-size:19px">⏱ 5:00</div>
     <div class="card" id="shieldCard" style="margin-top:6px">🛡 Защита до 500<div id="shieldBar"><div id="shieldFill"></div></div></div>
   </div>
   <div class="card" id="board"></div>
 </div>
+<div id="resultCard" class="hidden"></div>
 <div id="bigMsg"></div>
 <div id="hint" class="hidden"></div>
 <div id="achToast"></div>
@@ -211,19 +221,67 @@ ceiling.position.y = CEIL; kitchen.add(ceiling);
   const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.4, 12, 12), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffe9a0, emissiveIntensity: 1 })); bulb.position.set(0, CEIL - 2.4, 0); kitchen.add(bulb);
   const lamp = new THREE.PointLight(0xfff2d0, 0.6, 90); lamp.position.set(0, CEIL - 2.5, 0); kitchen.add(lamp);
 })();
-// 🏠 гостиная — безопасная комната (здесь игрока не съесть)
-const SAFE = { x0: ARENA - 12, z0: ARENA - 12, x1: ARENA - 3, z1: ARENA - 3 };
+// 🏠 ГОСТИНАЯ — ОТДЕЛЬНАЯ КОМНАТА со стенами и дверным проёмом.
+// Здесь тебя не съесть. Но пролезть можно только пока ты меньше дверей.
+const SAFE = { x0: ARENA - 14, z0: ARENA - 14, x1: ARENA - 2, z1: ARENA - 2 };
+const DOOR_W = 9;                                  // ширина проёма
+const DOOR_HALF = DOOR_W / 2;
+const WALL_T = 0.6, WALL_H = 3.2;
+const walls = [];                                  // стенки гостиной: {minX,maxX,minZ,maxZ}
 (function buildSafeRoom() {
   const cx = (SAFE.x0 + SAFE.x1) / 2, cz = (SAFE.z0 + SAFE.z1) / 2, w = SAFE.x1 - SAFE.x0, d = SAFE.z1 - SAFE.z0;
+  // пол-ковёр
   const rug = new THREE.Mesh(new THREE.BoxGeometry(w, 0.14, d), new THREE.MeshStandardMaterial({ color: 0x6a4bb0, roughness: .95 })); rug.position.set(cx, 0.08, cz); rug.receiveShadow = true; kitchen.add(rug);
-  const trim = new THREE.Mesh(new THREE.BoxGeometry(w, 0.16, d), new THREE.MeshBasicMaterial({ color: 0xffd23b, wireframe: true })); trim.position.set(cx, 0.16, cz); kitchen.add(trim);
+  // мебель
   const couchMat = new THREE.MeshStandardMaterial({ color: 0x3b7bff, roughness: .8 });
-  const seat = new THREE.Mesh(new THREE.BoxGeometry(w * 0.55, 0.6, 1.4), couchMat); seat.position.set(cx, 0.5, SAFE.z0 + 1.3); seat.castShadow = true; kitchen.add(seat);
-  const back = new THREE.Mesh(new THREE.BoxGeometry(w * 0.55, 1.1, 0.4), couchMat); back.position.set(cx, 0.9, SAFE.z0 + 0.7); kitchen.add(back);
-  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 2.6, 8), new THREE.MeshStandardMaterial({ color: 0x888888 })); pole.position.set(SAFE.x1 - 1.4, 1.3, SAFE.z1 - 1.4); kitchen.add(pole);
-  const shade = new THREE.Mesh(new THREE.ConeGeometry(0.8, 0.9, 16), new THREE.MeshStandardMaterial({ color: 0xffe9a0, emissive: 0xffd060, emissiveIntensity: .6 })); shade.position.set(SAFE.x1 - 1.4, 2.7, SAFE.z1 - 1.4); kitchen.add(shade);
+  const seat = new THREE.Mesh(new THREE.BoxGeometry(w * 0.45, 0.6, 1.4), couchMat); seat.position.set(cx + 1, 0.5, SAFE.z0 + 2.2); seat.castShadow = true; kitchen.add(seat);
+  const back = new THREE.Mesh(new THREE.BoxGeometry(w * 0.45, 1.1, 0.4), couchMat); back.position.set(cx + 1, 0.9, SAFE.z0 + 1.6); kitchen.add(back);
+  const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 2.6, 8), new THREE.MeshStandardMaterial({ color: 0x888888 })); pole.position.set(SAFE.x1 - 1.6, 1.3, SAFE.z1 - 1.6); kitchen.add(pole);
+  const shade = new THREE.Mesh(new THREE.ConeGeometry(0.8, 0.9, 16), new THREE.MeshStandardMaterial({ color: 0xffe9a0, emissive: 0xffd060, emissiveIntensity: .6 })); shade.position.set(SAFE.x1 - 1.6, 2.7, SAFE.z1 - 1.6); kitchen.add(shade);
+  const tv = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.5, 0.25), new THREE.MeshStandardMaterial({ color: 0x14161b })); tv.position.set(SAFE.x1 - 1.2, 1.4, cz); kitchen.add(tv);
+  const scr = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 1.2), new THREE.MeshStandardMaterial({ color: 0x49d8ff, emissive: 0x49d8ff, emissiveIntensity: .8 })); scr.position.set(SAFE.x1 - 1.34, 1.4, cz); scr.rotation.y = -Math.PI / 2; kitchen.add(scr);
+  const lamp = new THREE.PointLight(0xffd8a0, 0.7, 34); lamp.position.set(cx, 2.6, cz); kitchen.add(lamp);
+
+  const wallMat = new THREE.MeshStandardMaterial({ color: 0xb08bd6, roughness: .9 });
+  function wall(minX, maxX, minZ, maxZ) {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(maxX - minX, WALL_H, maxZ - minZ), wallMat);
+    m.position.set((minX + maxX) / 2, WALL_H / 2, (minZ + maxZ) / 2); m.castShadow = true; kitchen.add(m);
+    walls.push({ minX, maxX, minZ, maxZ });
+  }
+  // стена со стороны кухни (по X) — с проёмом посередине
+  wall(SAFE.x0 - WALL_T, SAFE.x0, SAFE.z0 - WALL_T, cz - DOOR_HALF);
+  wall(SAFE.x0 - WALL_T, SAFE.x0, cz + DOOR_HALF, SAFE.z1 + WALL_T);
+  // стена со стороны кухни (по Z) — сплошная
+  wall(SAFE.x0 - WALL_T, SAFE.x1 + WALL_T, SAFE.z0 - WALL_T, SAFE.z0);
+  // дальние стены — к краю кухни
+  wall(SAFE.x1, SAFE.x1 + WALL_T, SAFE.z0 - WALL_T, SAFE.z1 + WALL_T);
+  wall(SAFE.x0 - WALL_T, SAFE.x1 + WALL_T, SAFE.z1, SAFE.z1 + WALL_T);
+  // рамка проёма — чтобы дверь было видно издалека
+  [cz - DOOR_HALF, cz + DOOR_HALF].forEach(z => {
+    const p = new THREE.Mesh(new THREE.BoxGeometry(WALL_T * 1.4, WALL_H, WALL_T * 1.4),
+      new THREE.MeshStandardMaterial({ color: 0xffd23b, emissive: 0xffb300, emissiveIntensity: .35 }));
+    p.position.set(SAFE.x0 - WALL_T / 2, WALL_H / 2, z); kitchen.add(p);
+  });
 })();
 function inSafe(v) { return v.x > SAFE.x0 && v.x < SAFE.x1 && v.z > SAFE.z0 && v.z < SAFE.z1; }
+
+// стенки гостиной. Если пылесос вырос внутри и уже не пролезает в дверь —
+// пропускаем его сквозь стену, иначе он застрянет там навсегда.
+function pushOutOfWalls(v) {
+  if (v.r > DOOR_HALF - 0.3 && inSafe(v)) return;
+  for (const w of walls) {
+    const cx = clamp(v.x, w.minX, w.maxX), cz = clamp(v.z, w.minZ, w.maxZ);
+    const dx = v.x - cx, dz = v.z - cz, d2 = dx * dx + dz * dz;
+    if (d2 >= v.r * v.r) continue;
+    const d = Math.sqrt(d2);
+    if (d < 1e-5) {
+      const l = v.x - w.minX, r = w.maxX - v.x, t = v.z - w.minZ, b = w.maxZ - v.z;
+      const m = Math.min(l, r, t, b);
+      if (m === l) v.x = w.minX - v.r; else if (m === r) v.x = w.maxX + v.r;
+      else if (m === t) v.z = w.minZ - v.r; else v.z = w.maxZ + v.r;
+    } else { const push = (v.r - d) / d; v.x += dx * push; v.z += dz * push; }
+  }
+}
 // превью пылесоса для меню
 let previewVac = null;
 // корона над самым большим пылесосом
@@ -263,7 +321,14 @@ const foodGeos = [new THREE.SphereGeometry(0.22, 7, 6), new THREE.BoxGeometry(0.
 const foodMats = [new THREE.MeshStandardMaterial({ color: 0xbfc4cf, roughness: 1 }), new THREE.MeshStandardMaterial({ color: 0xc79a5b, roughness: .9 }), new THREE.MeshStandardMaterial({ color: 0xfff2c0, roughness: .8 }), new THREE.MeshStandardMaterial({ color: 0xff5aa0, roughness: .5 })];
 const foodNames = ['пыль', 'крошка', 'попкорн', 'фантик'];
 const pellets = [];
-function spawnPelletAt(p) { const k = Math.floor(Math.random() * 4); p.mesh.geometry = foodGeos[k]; p.mesh.material = foodMats[k]; p.gain = [1.5, 2, 2, 2.5][k]; p.x = rand(-ARENA + 2, ARENA - 2); p.z = rand(-ARENA + 2, ARENA - 2); p.mesh.position.set(p.x, 0.3, p.z); }
+function spawnPelletAt(p) {
+  const k = Math.floor(Math.random() * 4); p.mesh.geometry = foodGeos[k]; p.mesh.material = foodMats[k]; p.gain = [1.5, 2, 2, 2.5][k];
+  // мусор в гостиной не появляется — там чисто, и сидеть там незачем
+  let tries = 0;
+  do { p.x = rand(-ARENA + 2, ARENA - 2); p.z = rand(-ARENA + 2, ARENA - 2); tries++; }
+  while (tries < 20 && p.x > SAFE.x0 - 1 && p.x < SAFE.x1 + 1 && p.z > SAFE.z0 - 1 && p.z < SAFE.z1 + 1);
+  p.mesh.position.set(p.x, 0.3, p.z);
+}
 
 // ==== ускорители ====
 const boosters = [];
@@ -314,6 +379,8 @@ function playerDir() {
 
 // ==== состояние ====
 let state = 'menu', playing = false, won = false, chosenColor = 0, raf = 0, lastT = 0, time = 0, playerInvisible = false;
+const MATCH = 300;                 // матч длится 5 минут
+let matchLeft = MATCH;
 
 function resetWorld() {
   vacuums.forEach(v => scene.remove(v.mesh)); vacuums = [];
@@ -336,20 +403,43 @@ function makeLolli() {
   const candy = new THREE.Mesh(new THREE.SphereGeometry(0.7, 16, 14), new THREE.MeshStandardMaterial({ color: 0xff3b7b, roughness: .3, emissive: 0xff1160, emissiveIntensity: .3 })); candy.position.y = 1.4; g.add(candy);
   const swirl = new THREE.Mesh(new THREE.TorusGeometry(0.45, 0.12, 8, 20), new THREE.MeshStandardMaterial({ color: 0xffffff })); swirl.position.y = 1.4; g.add(swirl);
   const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.09, 1.4, 8), new THREE.MeshStandardMaterial({ color: 0xffffff })); stick.position.y = 0.7; g.add(stick);
-  const x = rand(-ARENA + 5, ARENA - 5), z = rand(-ARENA + 5, ARENA - 5); g.position.set(x, 0, z); scene.add(g);
-  return { mesh: g, x, z };
+  let x, z, tries = 0;
+  do { x = rand(-ARENA + 5, ARENA - 5); z = rand(-ARENA + 5, ARENA - 5); tries++; }
+  while (tries < 25 && x > SAFE.x0 - 1 && x < SAFE.x1 + 1 && z > SAFE.z0 - 1 && z < SAFE.z1 + 1);
+  g.position.set(x, 0, z); scene.add(g);
+  return { mesh: g, x, z, cool: 0 };
 }
-function respawnLolli(l) { l.x = rand(-ARENA + 5, ARENA - 5); l.z = rand(-ARENA + 5, ARENA - 5); l.mesh.position.set(l.x, 0, l.z); }
+// Леденец уезжает ПОДАЛЬШЕ от того, кто его съел, и пару секунд не появляется.
+// Иначе у огромного пылесоса радиус накрывает всю кухню: леденец возрождается
+// прямо внутри него и съедается каждый кадр — размер улетал в бесконечность.
+function inSafeXZ(x, z) { return x > SAFE.x0 - 1 && x < SAFE.x1 + 1 && z > SAFE.z0 - 1 && z < SAFE.z1 + 1; }
+function respawnLolli(l, eater) {
+  for (let i = 0; i < 30; i++) {
+    l.x = rand(-ARENA + 5, ARENA - 5); l.z = rand(-ARENA + 5, ARENA - 5);
+    if (inSafeXZ(l.x, l.z)) continue;                   // в гостиной сладкого нет
+    if (!eater || dist2(l.x, l.z, eater.x, eater.z) > eater.r + 8) break;
+  }
+  l.mesh.position.set(l.x, 0, l.z);
+  l.cool = 2.5; l.mesh.visible = false;
+}
 
 function eatable(v) { if (v.isPlayer) return v.size >= SHIELD && !inSafe(v); return true; }
 function canEat(a, b) { return !a.dead && !b.dead && eatable(b) && a.r > b.r * 1.13; }
 
 function removeBot(b) { b.dead = true; scene.remove(b.mesh); const i = vacuums.indexOf(b); if (i >= 0) vacuums.splice(i, 1); }
+// Съеденный бот НЕ исчезает — он уменьшается до стартового размера, ровно как ты.
+// Поэтому за 5 минут матч не заканчивается: соперники всегда на кухне.
+function resetBot(b) {
+  b.size = START; b.r = rOf(START);
+  b.x = rand(-ARENA + 6, ARENA - 6); b.z = rand(-ARENA + 6, ARENA - 6);
+  b.mesh.position.set(b.x, 0, b.z); b.mesh.scale.setScalar(b.r);
+  b.vx = 0; b.vz = 0; b.boost = 0;
+}
 function resetPlayer() {
   player.size = START; player.r = rOf(START); player.x = rand(-ARENA + 6, ARENA - 6); player.z = rand(-ARENA + 6, ARENA - 6);
   showBig('Тебя засосало! 😵', '#ff8a8a'); setTimeout(fadeBig, 900); Sound.lose();
 }
-function checkWin() { if (vacuums.filter(v => !v.isPlayer).length === 0 && !won) { won = true; winGame(); } }
+function place() { return vacuums.slice().sort((a, b) => b.size - a.size).indexOf(player) + 1; }
 
 function grow(v, amount) { v.size += amount; v.r = rOf(v.size); }
 
@@ -373,7 +463,10 @@ function botThink(b, dt) {
 function stepVac(v, dir, dt) {
   const sp = (16 / (1 + v.r * 0.08)) * (v.boost > 0 ? 1.7 : 1) * (v.isPlayer ? 1.06 : 1);
   v.vx += (dir.x * sp - v.vx) * Math.min(1, dt * 8); v.vz += (dir.z * sp - v.vz) * Math.min(1, dt * 8);
-  v.x = clamp(v.x + v.vx * dt, -ARENA + v.r, ARENA - v.r); v.z = clamp(v.z + v.vz * dt, -ARENA + v.r, ARENA - v.r);
+  // огромный пылесос всё равно не должен вылезать за кухню (иначе границы «переворачивались»)
+  const lim = Math.max(1, ARENA - v.r);
+  v.x = clamp(v.x + v.vx * dt, -lim, lim); v.z = clamp(v.z + v.vz * dt, -lim, lim);
+  pushOutOfWalls(v);                                   // стенки гостиной
   if (Math.hypot(v.vx, v.vz) > 0.4) v.heading = Math.atan2(v.vx, v.vz);
   if (v.boost > 0) v.boost -= dt;
   const ud = v.mesh.userData; if (ud.brush) ud.brush.rotation.y += dt * 12;
@@ -385,7 +478,14 @@ function stepVac(v, dir, dt) {
 function eatPellets(v) {
   const reach = v.r + 0.3;
   for (const p of pellets) { if (dist2(v.x, v.z, p.x, p.z) < reach) { grow(v, p.gain); if (v.isPlayer) { Sound.blip(v.size); Ach.stat('trashEaten', 1); } spawnPelletAt(p); } }
-  for (const l of lollis) { if (dist2(v.x, v.z, l.x, l.z) < v.r + 0.8) { grow(v, Math.max(150, v.size * 1.4)); if (v.isPlayer) { Ach.stat('lollisEaten', 1); showBig('ЛЕДЕНЕЦ! 🍭 МЕГА-РОСТ!', '#ff6ec7'); setTimeout(fadeBig, 1100); Sound.mega(); } respawnLolli(l); } }
+  for (const l of lollis) {
+    if (l.cool > 0) continue;
+    if (dist2(v.x, v.z, l.x, l.z) < v.r + 0.8) {
+      grow(v, clamp(v.size * 0.6, 150, 900));           // мегарост, но не в разы каждый раз
+      if (v.isPlayer) { Ach.stat('lollisEaten', 1); showBig('ЛЕДЕНЕЦ! 🍭 МЕГА-РОСТ!', '#ff6ec7'); setTimeout(fadeBig, 1100); Sound.mega(); }
+      respawnLolli(l, v);
+    }
+  }
   for (const bo of boosters) { if (bo.cool <= 0 && dist2(v.x, v.z, bo.x, bo.z) < v.r + 0.9) { v.boost = 2.2; bo.cool = 4; if (v.isPlayer) { Ach.stat('boostsUsed', 1); Sound.boost(); } } }
 }
 
@@ -406,7 +506,7 @@ function swallow(eater, prey) {
       if (inSafe(eater)) Ach.unlock('secret');  // 🕵️ секрет: съел бота, сидя в гостиной
       Sound.chomp(); showBig('АМ! 😋', '#8ef29a'); setTimeout(fadeBig, 500);
     }
-    removeBot(prey); checkWin();
+    resetBot(prey);                               // бот уменьшается и продолжает играть
   }
 }
 
@@ -422,13 +522,22 @@ function updateCamera(dt) {
 }
 
 // ==== HUD ====
+function timeStr(s) {
+  s = Math.max(0, Math.ceil(s));
+  return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+}
 function updateHud() {
   el('sizeCard').textContent = 'Размер: ' + Math.round(player.size);
   const shielded = player.size < SHIELD;
   el('shieldCard').style.display = shielded ? 'block' : 'none';
   if (shielded) el('shieldFill').style.width = clamp(player.size / SHIELD * 100, 0, 100) + '%';
-  const sorted = vacuums.slice().sort((a, b) => b.size - a.size).slice(0, 5);
-  el('board').innerHTML = '🏆 Кухня<br>' + sorted.map((v, i) => '<span class="' + (v.isPlayer ? 'me' : '') + '">' + (i + 1) + '. ' + (v.isPlayer ? 'ТЫ' : '🤖') + ' — ' + Math.round(v.size) + '</span>').join('<br>') + '<br><span style="opacity:.8">Ботов: ' + vacuums.filter(v => !v.isPlayer).length + '</span>';
+  const t = el('timeCard');
+  t.textContent = '⏱ ' + timeStr(matchLeft);
+  t.style.color = matchLeft <= 30 ? '#ff8a8a' : (matchLeft <= 60 ? '#ffe14d' : '#fff');
+  const sorted = vacuums.slice().sort((a, b) => b.size - a.size);
+  const my = sorted.indexOf(player) + 1;
+  el('board').innerHTML = '🏆 Кухня<br>' + sorted.slice(0, 5).map((v, i) => '<span class="' + (v.isPlayer ? 'me' : '') + '">' + (i + 1) + '. ' + (v.isPlayer ? 'ТЫ' : '🤖') + ' — ' + Math.round(v.size) + '</span>').join('<br>')
+    + '<br><span style="opacity:.85">Ты ' + my + '-й из ' + sorted.length + '</span>';
 }
 
 function showBig(t, c) { const b = el('bigMsg'); b.textContent = t; b.style.color = c || '#fff'; b.style.opacity = '1'; b.animate([{ transform: 'translate(-50%,-50%) scale(1.5)' }, { transform: 'translate(-50%,-50%) scale(1)' }], { duration: 300 }); }
@@ -455,21 +564,41 @@ function startGame(col) {
   chosenColor = col != null ? col : chosenColor; state = 'play'; playing = true; won = false;
   el('menu').classList.add('hidden'); el('achv').classList.add('hidden'); el('hud').classList.remove('hidden'); el('hint').classList.remove('hidden');
   el('colorBtn').classList.remove('hidden'); el('menuBtn').classList.remove('hidden'); el('colorPop').classList.remove('show'); showJoy(true);
-  el('hint').textContent = '🛡 Расти до 500 под защитой, потом съешь всех!';
+  el('hint').textContent = '⏱ 5 минут! Ешь мусор и ботов, держись на 1-м месте к концу времени.';
+  el('resultCard').classList.add('hidden');
+  matchLeft = MATCH;
   kitchen.visible = true; if (previewVac) previewVac.visible = false;
   scene.background = new THREE.Color(0x11202f); scene.fog.far = 130;
   resetWorld(); Sound.init(); Sound.startMusic();
   lastT = 0; if (!raf) raf = requestAnimationFrame(loop);
 }
-function winGame() {
-  playing = false; Sound.stopMusic(); Ach.stat('wins', 1); Ach.save();
+// ==== конец матча: время вышло, считаем победителя ====
+function finishMatch() {
+  if (won) return;
+  won = true; playing = false; Sound.stopMusic();
+  const sorted = vacuums.slice().sort((a, b) => b.size - a.size);
+  const my = sorted.indexOf(player) + 1;
+  const king = my === 1;
+  if (king) { Ach.stat('wins', 1); Ach.save(); confettiBurst(); Sound.win && Sound.win(); }
   const best = Math.max(Math.round(player.size), Number(localStorage.getItem('obzhora_best') || 0));
   try { localStorage.setItem('obzhora_best', best); } catch (e) {}
-  showBig('👑 ТЫ КОРОЛЬ КУХНИ!', '#ffe14d'); confettiBurst();
-  el('hint').classList.remove('hidden'); el('hint').innerHTML = 'Размер: ' + Math.round(player.size) + ' · Рекорд: ' + best + ' &nbsp; <b>жми, чтобы сыграть ещё</b>';
+
+  showBig(king ? '👑 ТЫ КОРОЛЬ КУХНИ!' : '⏱ ВРЕМЯ ВЫШЛО', king ? '#ffe14d' : '#9fd0ff');
+  const rows = sorted.slice(0, 6).map((v, i) => {
+    const medal = ['🥇','🥈','🥉'][i] || (i + 1) + '.';
+    return '<div class="row' + (v.isPlayer ? ' me' : '') + '"><span>' + medal + ' ' + (v.isPlayer ? 'ТЫ' : 'Бот') + '</span><span>' + Math.round(v.size) + '</span></div>';
+  }).join('');
+  const card = el('resultCard');
+  card.innerHTML = '<h2>' + (king ? '👑 КОРОЛЬ КУХНИ' : 'Ты ' + my + '-й из ' + sorted.length) + '</h2>'
+    + rows
+    + '<div class="sub2">Твой размер: ' + Math.round(player.size) + ' · рекорд: ' + best + '</div>'
+    + '<div class="sub2"><b>жми, чтобы сыграть ещё</b></div>';
+  card.classList.remove('hidden');
+  el('hint').classList.add('hidden');
   setTimeout(() => { addEventListener('pointerdown', backToMenuOnce, { once: true }); }, 900);
 }
-function backToMenuOnce() { stopConfetti(); showMenu(); }
+function winGame() { finishMatch(); }
+function backToMenuOnce() { stopConfetti(); el('resultCard').classList.add('hidden'); showMenu(); }
 
 // ==== главный цикл ====
 function loop(t) {
@@ -477,8 +606,13 @@ function loop(t) {
   const now = (t || 0) / 1000; let dt = now - lastT; lastT = now; if (dt > 0.05) dt = 0.05; if (dt <= 0) dt = 0.016;
   if (playing) {
     time += dt;
+    // ⏱ таймер матча: время вышло — считаем победителя
+    const wasLeft = matchLeft;
+    matchLeft -= dt;
+    [60, 30, 10].forEach(m => { if (wasLeft > m && matchLeft <= m) { showBig('⏱ ' + m + ' СЕКУНД!', '#ffe14d'); setTimeout(fadeBig, 1100); } });
+    if (matchLeft <= 0) { matchLeft = 0; updateHud(); finishMatch(); }
     for (const bo of boosters) { if (bo.cool > 0) bo.cool -= dt; bo.mesh.visible = bo.cool <= 0; bo.mesh.rotation.y += dt * 2; }
-    for (const l of lollis) { l.mesh.rotation.y += dt * 1.5; l.mesh.children[0].position.y = 1.4 + Math.sin(time * 3) * 0.12; }
+    for (const l of lollis) { if (l.cool > 0) { l.cool -= dt; if (l.cool <= 0) l.mesh.visible = true; } l.mesh.rotation.y += dt * 1.5; l.mesh.children[0].position.y = 1.4 + Math.sin(time * 3) * 0.12; }
     stepVac(player, playerDir(), dt);
     Ach.setMax('maxSize', player.size);
     const ns = inSafe(player); if (ns && !player.wasSafe) { showBig('🏠 Гостиная — тут не съедят!', '#c9a6ff'); setTimeout(fadeBig, 900); Ach.stat('safeUsed', 1); } player.wasSafe = ns;
@@ -536,7 +670,7 @@ const ACHS = [
   { id: 'big', em: '🛡', name: 'Выше защиты', desc: 'Дорасти до размера 500', stat: 'maxSize', goal: 500 },
   { id: 'giant', em: '📏', name: 'Гигант кухни', desc: 'Дорасти до размера 2000', stat: 'maxSize', goal: 2000 },
   { id: 'homebody', em: '🏠', name: 'Домосед', desc: 'Побывай в гостиной', stat: 'safeUsed', goal: 1 },
-  { id: 'king', em: '👑', name: 'Король кухни', desc: 'Съешь всех и победи', stat: 'wins', goal: 1 },
+  { id: 'king', em: '👑', name: 'Король кухни', desc: 'Будь 1-м, когда выйдет время', stat: 'wins', goal: 1 },
 ];
 const SECRET = { id: 'secret', em: '🕵️', name: 'Тайный обжора', desc: 'Съешь бота, сидя в гостиной 🤫' };
 const Ach = {
@@ -584,9 +718,13 @@ updateMusBtn();
 // ==== отладка ====
 window.__dbg = {
   start: (c) => startGame(c || 0),
-  state: () => ({ state, playing, won, size: Math.round(player ? player.size : 0), shield: player ? player.size < SHIELD : true, bots: vacuums.filter(v => !v.isPlayer).length, invis: playerInvisible }),
+  state: () => ({ state, playing, won, size: Math.round(player ? player.size : 0), shield: player ? player.size < SHIELD : true, bots: vacuums.filter(v => !v.isPlayer).length, invis: playerInvisible, left: Math.round(matchLeft), place: player ? place() : 0 }),
+  setTime: (s) => { matchLeft = s; },
+  finish: () => finishMatch(),
+  inSafe: () => inSafe(player),
+  teleport: (x, z) => { player.x = x; player.z = z; player.mesh.position.set(x, 0, z); },
   grow: (n) => grow(player, n || 100),
-  eatAll: () => { for (let i = vacuums.length - 1; i >= 0; i--) if (!vacuums[i].isPlayer) removeBot(vacuums[i]); checkWin(); },
+  eatAll: () => { for (const v of vacuums) if (!v.isPlayer) { grow(player, v.size); resetBot(v); } },
   eatMe: () => resetPlayer(),
   music: () => ({ on: Sound.musicIsOn(), playing: Sound.musicPlaying() }),
   sizes: () => vacuums.map(v => Math.round(v.size)),
