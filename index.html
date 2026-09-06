@@ -81,7 +81,7 @@
   <link rel="apple-touch-icon-precomposed" sizes="180x180" href="apple-touch-icon.png">
   <meta name="msapplication-TileImage" content="icon-192.png">
   <meta name="msapplication-TileColor" content="#2a2438">
-  <script>window.__APP_VER = "b7f1b75ece";</script>
+  <script>window.__APP_VER = "44754c0120";</script>
 </head>
 <body>
 <div id="err"></div>
@@ -235,8 +235,10 @@ const потолочнаяЛампа = new THREE.Group();          // пряче
 })();
 // 🏠 ГОСТИНАЯ — ОТДЕЛЬНАЯ КОМНАТА со стенами и дверным проёмом.
 // Здесь тебя не съесть. Но пролезть можно только пока ты меньше дверей.
-const SAFE = { x0: ARENA - 14, z0: ARENA - 14, x1: ARENA - 2, z1: ARENA - 2 };
-const DOOR_W = 9;                                  // ширина проёма
+// 🛋 гостиная ПРОСТОРНАЯ (просьба Марка 06.09): было 12×12, стало 22×22 — можно спрятаться,
+// покататься и разъехаться с ботами, а не толкаться в тесном углу.
+const SAFE = { x0: ARENA - 24, z0: ARENA - 24, x1: ARENA - 2, z1: ARENA - 2 };
+const DOOR_W = 12;                                 // проём тоже шире — влезаешь дольше
 const DOOR_HALF = DOOR_W / 2;
 const WALL_T = 0.6, WALL_H = 3.2;
 const walls = [];                                  // стенки гостиной: {minX,maxX,minZ,maxZ}
@@ -253,6 +255,29 @@ const walls = [];                                  // стенки гостин�
   const tv = new THREE.Mesh(new THREE.BoxGeometry(2.6, 1.5, 0.25), new THREE.MeshStandardMaterial({ color: 0x14161b })); tv.position.set(SAFE.x1 - 1.2, 1.4, cz); kitchen.add(tv);
   const scr = new THREE.Mesh(new THREE.PlaneGeometry(2.2, 1.2), new THREE.MeshStandardMaterial({ color: 0x49d8ff, emissive: 0x49d8ff, emissiveIntensity: .8 })); scr.position.set(SAFE.x1 - 1.34, 1.4, cz); scr.rotation.y = -Math.PI / 2; kitchen.add(scr);
   const lamp = new THREE.PointLight(0xffd8a0, 0.7, 34); lamp.position.set(cx, 2.6, cz); kitchen.add(lamp);
+  // 🛋 в просторной гостиной есть чем заняться: кресла, столик, тумба, растение, полка
+  const кресло = (px, pz, цв) => {
+    const м = new THREE.MeshStandardMaterial({ color:цв, roughness:.85 });
+    const с = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.55, 1.5), м); с.position.set(px, 0.45, pz); с.castShadow = true; kitchen.add(с);
+    const сп = new THREE.Mesh(new THREE.BoxGeometry(1.6, 1.0, 0.35), м); сп.position.set(px, 0.9, pz - 0.6); kitchen.add(сп);
+    for (const s of [-1, 1]) { const п = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.9, 1.5), м);
+      п.position.set(px + s*0.75, 0.75, pz); kitchen.add(п); }
+  };
+  кресло(SAFE.x0 + 3.5, cz + 3.5, 0x7c5cd6);
+  кресло(SAFE.x0 + 3.5, cz - 3.5, 0x4b96b5);
+  const столик = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 0.18, 20),
+    new THREE.MeshStandardMaterial({ color:0x8a5a3a, roughness:.7 })); столик.position.set(cx, 0.8, cz); столик.castShadow = true; kitchen.add(столик);
+  const ножка = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.4, 0.8, 12),
+    new THREE.MeshStandardMaterial({ color:0x6b4423 })); ножка.position.set(cx, 0.4, cz); kitchen.add(ножка);
+  const тумба = new THREE.Mesh(new THREE.BoxGeometry(3.2, 1.2, 1.0),
+    new THREE.MeshStandardMaterial({ color:0x9a6b3f, roughness:.8 }));
+  тумба.position.set(SAFE.x1 - 2.4, 0.6, cz + 6); тумба.castShadow = true; kitchen.add(тумба);
+  const горшок = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.5, 1.0, 14),
+    new THREE.MeshStandardMaterial({ color:0xb5462f })); горшок.position.set(SAFE.x0 + 2.5, 0.5, SAFE.z1 - 2.5); kitchen.add(горшок);
+  for (let i = 0; i < 5; i++) { const лист = new THREE.Mesh(new THREE.ConeGeometry(0.3, 2.0, 8),
+    new THREE.MeshStandardMaterial({ color:0x2e8b57, roughness:.9 }));
+    const a = i/5*6.28; лист.position.set(SAFE.x0 + 2.5 + Math.cos(a)*0.3, 1.8, SAFE.z1 - 2.5 + Math.sin(a)*0.3);
+    лист.rotation.set(Math.cos(a)*0.3, 0, -Math.sin(a)*0.3); kitchen.add(лист); }
 
   const wallMat = new THREE.MeshStandardMaterial({ color: 0xb08bd6, roughness: .9 });
   function wall(minX, maxX, minZ, maxZ) {
@@ -595,13 +620,14 @@ function swallow(eater, prey) {
 // ==== камера следует за игроком и ОТЪЕЗЖАЕТ по мере роста, чтобы всегда было видно себя
 // (просьба Марка 06.09: раньше камера упиралась в потолок и стены, и большой пылесос не влезал) ====
 function updateCamera(dt) {
-  // r = √size·0.32 → на 3000 радиус ≈17, камера ≈100: пылесос виден целиком и вокруг много места
-  const H = clamp(12 + player.r * 5.0, 12, 110);       // растёшь — камера выше и дальше
+  // r = √size·0.32. Камера поднимается умеренно: себя видно целиком, но кухня не превращается
+  // в карту с высоты птичьего полёта (Марк: «не должна отдаляться так далеко»)
+  const H = clamp(12 + player.r * 3.0, 12, 62);
   let tx = player.x, tz = player.z + H * 0.62;
-  // камеру больше НЕ зажимаем в комнате: иначе у большого пылесоса она лезла ему в бок.
-  // Слегка придерживаем только по горизонтали, чтобы не улетала за карту целиком.
-  const lim = AR() + H * 0.5;
-  tx = clamp(tx, -lim, lim); tz = clamp(tz, -lim, lim + H);
+  // ⚠️ камеру держим ВНУТРИ кухни: за стеной она смотрит сквозь стену и мебель (поймано 06.09).
+  // Обзор при росте даём не отъездом назад, а ВЫСОТОЙ — вид сверху.
+  const lim = AR() - 2.5;
+  tx = clamp(tx, -lim, lim); tz = clamp(tz, -lim, lim);
   camera.position.x += (tx - camera.position.x) * Math.min(1, dt * 4);
   camera.position.y += (H - camera.position.y) * Math.min(1, dt * 4);
   camera.position.z += (tz - camera.position.z) * Math.min(1, dt * 4);
@@ -610,6 +636,10 @@ function updateCamera(dt) {
   const высоко = camera.position.y > CEIL - 1.5;
   if (ceiling) ceiling.visible = !высоко;
   if (потолочнаяЛампа) потолочнаяЛампа.visible = !высоко;
+  // 🌑 огромный пылесос отбрасывал тень на пол-кухни, и всё темнело (жалоба Марка 06.09).
+  // Крупным теней не рисуем — света на кухне сразу хватает.
+  for (const v of vacuums) { const крупный = v.r > 5;
+    v.mesh.traverse(o => { if (o.isMesh && o.castShadow !== undefined) o.castShadow = !крупный; }); }
 }
 
 // ==== HUD ====
