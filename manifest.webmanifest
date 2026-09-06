@@ -1,7 +1,7 @@
 {
   "name": "Пылесос-обжора",
   "short_name": "Обжора",
-  "description": "Робот-пылесос ест мусор и растёт! Съешь всех и стань королём кухни 👑🦹",
+  "description": "Ешь мусор, расти и глотай других пылесосов! Кухня, гостиная, леденцы и защитное поле. 😋",
   "lang": "ru",
   "start_url": "./index.html",
   "scope": "./",
@@ -10,9 +10,9 @@
     "fullscreen",
     "standalone"
   ],
-  "orientation": "any",
-  "background_color": "#0c1226",
-  "theme_color": "#3b8ceb",
+  "orientation": "landscape",
+  "background_color": "#141824",
+  "theme_color": "#2a2438",
   "icons": [
     {
       "src": "icon-192.png",

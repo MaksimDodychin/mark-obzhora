@@ -71,12 +71,17 @@
 </style>
 
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="icon" type="image/png" href="icon-192.png">
-  <meta name="theme-color" content="#3b8ceb">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+  <link rel="shortcut icon" type="image/png" href="icon-192.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Пылесос-обжора">
-  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+  <link rel="apple-touch-icon-precomposed" sizes="180x180" href="apple-touch-icon.png">
+  <meta name="msapplication-TileImage" content="icon-192.png">
+  <meta name="msapplication-TileColor" content="#2a2438">
+  <script>window.__APP_VER = "b7f1b75ece";</script>
 </head>
 <body>
 <div id="err"></div>
@@ -219,11 +224,14 @@ for (const [sx, sz, horiz] of [[0, 1, 1], [0, -1, 1], [1, 0, 0], [-1, 0, 0]]) {
 // потолок + лампа
 const ceiling = new THREE.Mesh(new THREE.BoxGeometry(ARENA * 2 + 4, 0.4, ARENA * 2 + 4), new THREE.MeshStandardMaterial({ map: ceilTexture(), roughness: 1 }));
 ceiling.position.y = CEIL; kitchen.add(ceiling);
+const потолочнаяЛампа = new THREE.Group();          // прячем вместе с потолком, когда камера высоко
 (function ceilingLamp() {
-  const cord = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.6, 6), new THREE.MeshStandardMaterial({ color: 0x333333 })); cord.position.set(0, CEIL - 0.8, 0); kitchen.add(cord);
-  const shade = new THREE.Mesh(new THREE.ConeGeometry(2.2, 1.4, 20, 1, true), new THREE.MeshStandardMaterial({ color: 0xf2f2f2, emissive: 0xffe9b0, emissiveIntensity: .5, side: THREE.DoubleSide })); shade.position.set(0, CEIL - 2.0, 0); kitchen.add(shade);
-  const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.4, 12, 12), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffe9a0, emissiveIntensity: 1 })); bulb.position.set(0, CEIL - 2.4, 0); kitchen.add(bulb);
+  const cord = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 1.6, 6), new THREE.MeshStandardMaterial({ color: 0x333333 })); cord.position.set(0, CEIL - 0.8, 0); потолочнаяЛампа.add(cord);
+  const shade = new THREE.Mesh(new THREE.ConeGeometry(2.2, 1.4, 20, 1, true), new THREE.MeshStandardMaterial({ color: 0xf2f2f2, emissive: 0xffe9b0, emissiveIntensity: .5, side: THREE.DoubleSide })); shade.position.set(0, CEIL - 2.0, 0); потолочнаяЛампа.add(shade);
+  const bulb = new THREE.Mesh(new THREE.SphereGeometry(0.4, 12, 12), new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffe9a0, emissiveIntensity: 1 })); bulb.position.set(0, CEIL - 2.4, 0); потолочнаяЛампа.add(bulb);
+  // ⚠️ САМ СВЕТ не прячем вместе с абажуром — иначе при отъезде камеры кухня чернеет
   const lamp = new THREE.PointLight(0xfff2d0, 0.6, 90); lamp.position.set(0, CEIL - 2.5, 0); kitchen.add(lamp);
+  kitchen.add(потолочнаяЛампа);
 })();
 // 🏠 ГОСТИНАЯ — ОТДЕЛЬНАЯ КОМНАТА со стенами и дверным проёмом.
 // Здесь тебя не съесть. Но пролезть можно только пока ты меньше дверей.
@@ -341,6 +349,37 @@ function spawnPelletAt(p) {
 const boosters = [];
 // ==== леденец ====
 const lollis = [];
+/* 🛡 БОНУС «ЗАЩИТНОЕ ПОЛЕ» (просьба Марка 06.09): подобрал — 30 секунд тебя нельзя съесть,
+   даже если ты меньше противника. Вокруг светится голубой купол. */
+const shields = [];
+const SHIELD_TIME = 30;
+function makeShieldBonus() {
+  const g = new THREE.Group();
+  const ядро = new THREE.Mesh(new THREE.IcosahedronGeometry(0.55, 0),
+    new THREE.MeshStandardMaterial({ color:0x7dd3fc, emissive:0x0ea5e9, emissiveIntensity:0.9,
+      roughness:0.15, metalness:0.4 }));
+  ядро.position.y = 1.2; g.add(ядро);
+  const купол = new THREE.Mesh(new THREE.SphereGeometry(0.95, 16, 12),
+    new THREE.MeshStandardMaterial({ color:0x9be3ff, transparent:true, opacity:0.28,
+      roughness:0.1, side:THREE.DoubleSide }));
+  купол.position.y = 1.2; g.add(купол);
+  const кольцо = new THREE.Mesh(new THREE.TorusGeometry(0.8, 0.07, 8, 22),
+    new THREE.MeshStandardMaterial({ color:0xffffff, emissive:0x7dd3fc, emissiveIntensity:0.8 }));
+  кольцо.rotation.x = Math.PI/2; кольцо.position.y = 1.2; g.add(кольцо);
+  const св = new THREE.PointLight(0x7dd3fc, 3, 12); св.position.y = 1.2; g.add(св);
+  let x, z, tries = 0;
+  do { x = rand(-AR() + 5, AR() - 5); z = rand(-AR() + 5, AR() - 5); tries++; }
+  while (tries < 25 && inSafeXZ(x, z));
+  g.position.set(x, 0, z); scene.add(g);
+  return { mesh:g, x, z, cool:0, ядро, кольцо };
+}
+function respawnShieldBonus(s) {                     // уезжает подальше и пару секунд не появляется
+  let x, z, tries = 0;
+  do { x = rand(-AR() + 5, AR() - 5); z = rand(-AR() + 5, AR() - 5); tries++; }
+  while (tries < 25 && inSafeXZ(x, z));
+  s.x = x; s.z = z; s.mesh.position.set(x, 0, z);
+  s.cool = 6; s.mesh.visible = false;
+}
 
 // ==== пылесосы ====
 let vacuums = [], player = null;
@@ -393,6 +432,7 @@ function resetWorld() {
   arenaScale = 1; kitchen.scale.setScalar(1);           // новая игра — кухня снова обычная
   vacuums.forEach(v => scene.remove(v.mesh)); vacuums = [];
   pellets.length = 0; boosters.forEach(b => scene.remove(b.mesh)); boosters.length = 0; lollis.forEach(l => scene.remove(l.mesh)); lollis.length = 0;
+  shields.forEach(s => scene.remove(s.mesh)); shields.length = 0;
   // игрок (с выбранным нарядом)
   const skin = SKINS[chosenColor] || SKINS[0]; playerInvisible = !!skin.invis;
   player = makeVac(skin.hex, true); applySkin(player.mesh, skin); player.x = 0; player.z = 0; player.mesh.position.set(0, 0, 0); vacuums.push(player);
@@ -404,6 +444,7 @@ function resetWorld() {
   for (let i = 0; i < BOOST_N; i++) { const g = new THREE.Group(); const ring = new THREE.Mesh(new THREE.TorusGeometry(1.1, 0.14, 10, 24), new THREE.MeshStandardMaterial({ color: 0x22d3d3, emissive: 0x11a0a0, emissiveIntensity: .7 })); ring.rotation.x = Math.PI / 2; g.add(ring); const arr = new THREE.Mesh(new THREE.ConeGeometry(0.5, 0.8, 4), new THREE.MeshStandardMaterial({ color: 0x9dfcff, emissive: 0x22d3d3, emissiveIntensity: .6 })); arr.rotation.x = Math.PI / 2; g.add(arr); const x = rand(-AR() + 4, AR() - 4), z = rand(-AR() + 4, AR() - 4); g.position.set(x, 0.2, z); scene.add(g); boosters.push({ mesh: g, x, z, cool: 0 }); }
   // леденцы
   for (let i = 0; i < LOLLI_N; i++) lollis.push(makeLolli());
+  for (let i = 0; i < 2; i++) shields.push(makeShieldBonus());   // 🛡 два защитных поля на кухне
   won = false;
 }
 function makeLolli() {
@@ -431,7 +472,9 @@ function respawnLolli(l, eater) {
   l.cool = 2.5; l.mesh.visible = false;
 }
 
-function eatable(v) { if (v.isPlayer) return v.size >= SHIELD && !inSafe(v); return true; }
+// 🛡 пока действует защитное поле — съесть нельзя ВООБЩЕ (и игрока, и бота)
+function eatable(v) { if (v.shieldT > 0) return false;
+  if (v.isPlayer) return v.size >= SHIELD && !inSafe(v); return true; }
 function canEat(a, b) { return !a.dead && !b.dead && eatable(b) && a.r > b.r * 1.13; }
 
 function removeBot(b) { b.dead = true; scene.remove(b.mesh); const i = vacuums.indexOf(b); if (i >= 0) vacuums.splice(i, 1); }
@@ -496,7 +539,10 @@ function stepVac(v, dir, dt) {
   if (Math.hypot(v.vx, v.vz) > 0.4) v.heading = Math.atan2(v.vx, v.vz);
   if (v.boost > 0) v.boost -= dt;
   const ud = v.mesh.userData; if (ud.brush) ud.brush.rotation.y += dt * 12;
-  const shielded = v.isPlayer && v.size < SHIELD; ud.shield.visible = shielded; if (shielded) { ud.shield.material.opacity = 0.18 + Math.sin(time * 5) * 0.07; }
+  // 🛡 купол виден: и от бонуса (30 сек), и от стартовой защиты малышей
+  const shielded = (v.shieldT > 0) || (v.isPlayer && v.size < SHIELD);
+  ud.shield.visible = shielded;
+  if (shielded && !(v.shieldT > 0)) ud.shield.material.opacity = 0.18 + Math.sin(time * 5) * 0.07;
   v.mesh.position.set(v.x, 0, v.z); v.mesh.rotation.y = v.heading;
   v.mesh.scale.setScalar(v.mesh.scale.x + (v.r - v.mesh.scale.x) * Math.min(1, dt * 6));
 }
@@ -513,6 +559,16 @@ function eatPellets(v) {
     }
   }
   for (const bo of boosters) { if (bo.cool <= 0 && dist2(v.x, v.z, bo.x, bo.z) < v.r + 0.9) { v.boost = 2.2; bo.cool = 4; if (v.isPlayer) { Ach.stat('boostsUsed', 1); Sound.boost(); } } }
+  // 🛡 защитное поле на 30 секунд
+  for (const s of shields) {
+    if (s.cool > 0) continue;
+    if (dist2(v.x, v.z, s.x, s.z) < v.r + 0.9) {
+      v.shieldT = SHIELD_TIME;
+      if (v.isPlayer) { showBig('🛡 ЗАЩИТНОЕ ПОЛЕ! 30 секунд', '#7dd3fc'); setTimeout(fadeBig, 1300);
+        Sound.boost(); Ach.stat('shieldsUsed', 1); }
+      respawnShieldBonus(s);
+    }
+  }
 }
 
 function resolveEating() {
@@ -536,15 +592,24 @@ function swallow(eater, prey) {
   }
 }
 
-// ==== камера следует за игроком, отдаляется при росте ====
+// ==== камера следует за игроком и ОТЪЕЗЖАЕТ по мере роста, чтобы всегда было видно себя
+// (просьба Марка 06.09: раньше камера упиралась в потолок и стены, и большой пылесос не влезал) ====
 function updateCamera(dt) {
-  const H = clamp(12 + player.r * 2.2, 12, 26);        // отдаляется при росте, но ниже потолка (29) и стен (27)
-  let tx = player.x, tz = player.z + H * 0.5;
-  const lim = AR() - 2.5; tx = clamp(tx, -lim, lim); tz = clamp(tz, -lim, lim);   // камера всегда внутри комнаты
+  // r = √size·0.32 → на 3000 радиус ≈17, камера ≈100: пылесос виден целиком и вокруг много места
+  const H = clamp(12 + player.r * 5.0, 12, 110);       // растёшь — камера выше и дальше
+  let tx = player.x, tz = player.z + H * 0.62;
+  // камеру больше НЕ зажимаем в комнате: иначе у большого пылесоса она лезла ему в бок.
+  // Слегка придерживаем только по горизонтали, чтобы не улетала за карту целиком.
+  const lim = AR() + H * 0.5;
+  tx = clamp(tx, -lim, lim); tz = clamp(tz, -lim, lim + H);
   camera.position.x += (tx - camera.position.x) * Math.min(1, dt * 4);
   camera.position.y += (H - camera.position.y) * Math.min(1, dt * 4);
   camera.position.z += (tz - camera.position.z) * Math.min(1, dt * 4);
   camera.lookAt(player.x, 0.5, player.z);
+  // 🏠 когда камера поднялась выше потолка — прячем потолок и лампу, иначе они закрывают вид
+  const высоко = camera.position.y > CEIL - 1.5;
+  if (ceiling) ceiling.visible = !высоко;
+  if (потолочнаяЛампа) потолочнаяЛампа.visible = !высоко;
 }
 
 // ==== HUD ====
@@ -553,7 +618,8 @@ function timeStr(s) {
   return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
 }
 function updateHud() {
-  el('sizeCard').textContent = 'Размер: ' + Math.round(player.size);
+  el('sizeCard').textContent = 'Размер: ' + Math.round(player.size) +
+    (player.shieldT > 0 ? '   🛡 ' + Math.ceil(player.shieldT) + ' сек' : '');
   const shielded = player.size < SHIELD;
   el('shieldCard').style.display = shielded ? 'block' : 'none';
   if (shielded) el('shieldFill').style.width = clamp(player.size / SHIELD * 100, 0, 100) + '%';
@@ -640,6 +706,17 @@ function loop(t) {
     growArena(dt);
     for (const bo of boosters) { if (bo.cool > 0) bo.cool -= dt; bo.mesh.visible = bo.cool <= 0; bo.mesh.rotation.y += dt * 2; }
     for (const l of lollis) { if (l.cool > 0) { l.cool -= dt; if (l.cool <= 0) l.mesh.visible = true; } l.mesh.rotation.y += dt * 1.5; l.mesh.children[0].position.y = 1.4 + Math.sin(time * 3) * 0.12; }
+    // 🛡 бонусы-щиты крутятся; у всех пылесосов тикает время защиты
+    for (const s of shields) { if (s.cool > 0) { s.cool -= dt; if (s.cool <= 0) s.mesh.visible = true; }
+      s.mesh.rotation.y += dt * 1.2; s.ядро.rotation.x += dt * 2; s.кольцо.rotation.z += dt * 1.6; }
+    for (const v of vacuums) if (v.shieldT > 0) {
+      v.shieldT -= dt;
+      const ud = v.mesh.userData;
+      if (ud && ud.shield) { ud.shield.visible = true;
+        ud.shield.material.opacity = (v.shieldT < 5 && Math.floor(time*6) % 2)   // мигает под конец
+          ? 0.05 : 0.30 + Math.sin(time * 6) * 0.08; }
+      if (v.shieldT <= 0 && v.isPlayer) { showBig('🛡 Защита кончилась!', '#fca5a5'); setTimeout(fadeBig, 900); }
+    }
     stepVac(player, playerDir(), dt);
     Ach.setMax('maxSize', player.size);
     const ns = inSafe(player); if (ns && !player.wasSafe) { showBig('🏠 Гостиная — тут не съедят!', '#c9a6ff'); setTimeout(fadeBig, 900); Ach.stat('safeUsed', 1); } player.wasSafe = ns;
@@ -752,6 +829,10 @@ window.__dbg = {
   inSafe: () => inSafe(player),
   teleport: (x, z) => { player.x = x; player.z = z; player.mesh.position.set(x, 0, z); },
   grow: (n) => grow(player, n || 100),
+  toShield: () => { const s = shields.find(x => x.cool <= 0); if (!s) return null;
+    player.x = s.x; player.z = s.z; player.mesh.position.set(s.x, 0, s.z); return { x:s.x, z:s.z }; },
+  shieldInfo: () => ({ бонусов: shields.length, осталось: Math.round(player ? (player.shieldT||0) : 0),
+    съедобен: player ? eatable(player) : null, размер: Math.round(player ? player.size : 0) }),
   eatAll: () => { for (const v of vacuums) if (!v.isPlayer) { grow(player, v.size); resetBot(v); } },
   eatMe: () => resetPlayer(),
   music: () => ({ on: Sound.musicIsOn(), playing: Sound.musicPlaying() }),
@@ -768,6 +849,62 @@ window.__dbg = {
 showMenu();
 </script>
 
-<script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));}</script>
+<script>
+// Игра стартует МГНОВЕННО из памяти телефона и работает без интернета.
+// Если интернет есть — проверяем крошечный version.json и обновляемся сами.
+(function () {
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(function(){}));
+  }
+  function баннер(текст) {
+    var d = document.getElementById('updBanner');
+    if (!d) { d = document.createElement('div'); d.id = 'updBanner';
+      d.style.cssText = 'position:fixed;left:50%;top:12px;transform:translateX(-50%);z-index:99999;' +
+        'background:#0b1220ee;color:#7dd3fc;font:900 15px system-ui;padding:10px 18px;border-radius:14px;' +
+        'border:2px solid #7dd3fc55;box-shadow:0 8px 24px #0009';
+      document.body.appendChild(d); }
+    d.textContent = текст;
+    return d;
+  }
+  async function applyUpdate() {
+    баннер('🔄 Обновляю игру…');
+    try {
+      const ks = await caches.keys();
+      await Promise.all(ks.map(function (k) { return caches.delete(k); }));
+      if ('serviceWorker' in navigator) {
+        const rs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(rs.map(function (r) { return r.unregister(); }));
+      }
+    } catch (_) {}
+    // ⚠️ Простой location.reload() может взять СТАРЫЙ html из кэша браузера,
+    // и обновление «не приходит» (жалоба Марка 23.08). Перезагружаемся по новому адресу.
+    setTimeout(function () {
+      location.replace(location.pathname + '?v=' + Date.now());
+    }, 400);
+  }
+  window.__forceUpdate = applyUpdate;
+  async function checkVersion(показать) {
+    try {
+      const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
+      if (!r.ok) throw 0;
+      const j = await r.json();
+      if (!j || !j.v) throw 0;
+      if (j.v === window.__APP_VER) { if (показать) { const d = баннер('✅ У тебя самая свежая версия');
+          setTimeout(function(){ d.remove(); }, 2500); } return false; }
+      if (window.__onUpdate) window.__onUpdate(applyUpdate); else applyUpdate();
+      return true;
+    } catch (_) {
+      if (показать) { const d = баннер('📴 Нет интернета — обновить не выйдет');
+        setTimeout(function(){ d.remove(); }, 2500); }
+      return false;
+    }
+  }
+  window.__checkUpdate = function () { return checkVersion(true); };
+  window.addEventListener('load', function () { setTimeout(checkVersion, 300); setTimeout(checkVersion, 3000); });
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) checkVersion(); });
+  addEventListener('online', checkVersion);
+  setInterval(checkVersion, 60 * 1000);
+})();
+</script>
 </body>
 </html>
