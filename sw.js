@@ -1,7 +1,7 @@
-// service worker «Пылесос-обжора» — версия по содержимому: ffe739c2b0
+// service worker «Пылесос-обжора» — версия по содержимому: 8589dc7abd
 // Игра всегда отдаётся МГНОВЕННО из памяти телефона (и работает без интернета).
 // Новая версия скачивается фоном при следующем заходе и применяется сама.
-const CACHE = 'obzhora-ffe739c2b0';
+const CACHE = 'obzhora-8589dc7abd';
 const ASSETS = ['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png','./icon-512-maskable.png','./apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
