@@ -81,7 +81,7 @@
   <link rel="apple-touch-icon-precomposed" sizes="180x180" href="apple-touch-icon.png">
   <meta name="msapplication-TileImage" content="icon-192.png">
   <meta name="msapplication-TileColor" content="#2a2438">
-  <script>window.__APP_VER = "44754c0120";</script>
+  <script>window.__APP_VER = "ffe739c2b0";</script>
 </head>
 <body>
 <div id="err"></div>
@@ -299,6 +299,69 @@ const walls = [];                                  // стенки гостин�
       new THREE.MeshStandardMaterial({ color: 0xffd23b, emissive: 0xffb300, emissiveIntensity: .35 }));
     p.position.set(SAFE.x0 - WALL_T / 2, WALL_H / 2, z); kitchen.add(p);
   });
+})();
+/* 🏠 УГОЛКИ КВАРТИРЫ как в «Битве пылесосов» (просьба Марка 06.09):
+   спальня, ванная, детская и прихожая. Это ЗОНЫ С МЕБЕЛЬЮ (без стен и коллизий) —
+   ездить сквозь них можно, зато кухня перестаёт быть пустым полем. */
+(function buildRooms() {
+  const М = (c, r = .85, e = 0) => new THREE.MeshStandardMaterial({ color:c, roughness:r,
+    emissive:e || 0x000000, emissiveIntensity: e ? .5 : 0 });
+  const короб = (w, h, d, x, y, z, m, ry) => { const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+    b.position.set(x, y, z); if (ry) b.rotation.y = ry; b.castShadow = true; kitchen.add(b); return b; };
+  const шар = (r2, x, y, z, m, sc) => { const s = new THREE.Mesh(new THREE.SphereGeometry(r2, 12, 10), m);
+    s.position.set(x, y, z); if (sc) s.scale.set(sc[0], sc[1], sc[2]); s.castShadow = true; kitchen.add(s); return s; };
+  const пол = (x0, z0, x1, z1, цвет) => {
+    const p = new THREE.Mesh(new THREE.BoxGeometry(x1-x0, 0.12, z1-z0), М(цвет, 1));
+    p.position.set((x0+x1)/2, 0.07, (z0+z1)/2); p.receiveShadow = true; kitchen.add(p); };
+
+  // 🛏 СПАЛЬНЯ — угол (−X, +Z)
+  пол(-ARENA+2, ARENA-20, -ARENA+20, ARENA-2, 0x8a6a9a);
+  for (const dx of [0, 7]) {                       // две кровати
+    const bx = -ARENA+6+dx, bz = ARENA-14;
+    короб(3.4, 0.7, 5.2, bx, 0.45, bz, М(0x5d3a20));
+    короб(3.2, 0.4, 5.0, bx, 0.95, bz, М(0xf2f2f2));
+    короб(3.2, 0.25, 2.6, bx, 1.2, bz-1.0, М(0x7c5cd6));   // одеяло
+    короб(2.0, 0.3, 0.9, bx, 1.25, bz+1.9, М(0xffffff));   // подушка
+    короб(3.4, 1.6, 0.25, bx, 0.9, bz+2.7, М(0x6b4423));   // спинка
+  }
+  короб(1.4, 1.2, 1.0, -ARENA+10.5, 0.6, ARENA-17.5, М(0x6b4423));         // тумбочка
+  короб(4.0, 5.0, 1.8, -ARENA+17, 2.5, ARENA-8, М(0x7a5230));              // шкаф
+  // 🛁 ВАННАЯ — угол (−X, −Z)
+  пол(-ARENA+2, -ARENA+2, -ARENA+18, -ARENA+18, 0x7fa8c9);
+  const ванна = короб(6.0, 1.6, 3.0, -ARENA+8, 0.9, -ARENA+6, М(0xffffff, .4));
+  короб(5.4, 0.2, 2.4, -ARENA+8, 1.6, -ARENA+6, М(0x4db5ff, .1, 1));       // вода
+  короб(1.2, 2.0, 1.2, -ARENA+14.5, 1.0, -ARENA+5, М(0xffffff, .4));       // раковина
+  шар(0.9, -ARENA+14.5, 2.2, -ARENA+5, М(0xffffff, .4), [1.4, .7, 1.2]);
+  короб(2.4, 2.4, 2.2, -ARENA+5, 1.2, -ARENA+13, М(0xdfe6ee, .5));         // стиралка
+  шар(0.85, -ARENA+5, 1.2, -ARENA+11.8, М(0x66bfff, .1), [1, 1, .3]);      // люк
+  короб(1.6, 1.6, 1.6, -ARENA+12, 0.8, -ARENA+14, М(0xffffff, .4));        // унитаз
+  // 🧸 ДЕТСКАЯ — угол (+X, −Z)
+  пол(ARENA-20, -ARENA+2, ARENA-2, -ARENA+20, 0xffd6e8);
+  короб(3.0, 0.6, 4.4, ARENA-16, 0.4, -ARENA+7, М(0xf2a6c0));              // кроватка
+  короб(2.8, 0.35, 4.2, ARENA-16, 0.85, -ARENA+7, М(0xffffff));
+  короб(3.0, 1.4, 0.2, ARENA-16, 0.9, -ARENA+9.4, М(0xe98cae));
+  короб(0.3, 4.0, 1.6, ARENA-5, 2.0, -ARENA+7, М(0x7a5230));               // стеллаж
+  for (let i = 0; i < 3; i++) короб(2.6, 0.2, 1.4, ARENA-6, 0.9+i*1.2, -ARENA+7, М(0x7a5230));
+  for (let i = 0; i < 6; i++) короб(0.25, 0.8, 0.6, ARENA-6.9+i*0.35, 1.4, -ARENA+7,
+    М([0xef4444,0x22c55e,0x3b82f6,0xf59e0b,0xa855f7,0xec4899][i]));        // книжки
+  шар(1.0, ARENA-10, 1.0, -ARENA+13, М(0xff5252));                        // мячик
+  шар(0.9, ARENA-14, 0.9, -ARENA+16, М(0xb4763a), [1, 1.15, .9]);         // мишка: тело
+  шар(0.7, ARENA-14, 2.1, -ARENA+16, М(0xb4763a));                        // мишка: голова
+  for (const s of [-1, 1]) шар(0.28, ARENA-14+s*0.5, 2.7, -ARENA+16, М(0xb4763a));
+  короб(2.0, 0.7, 1.1, ARENA-8, 0.5, -ARENA+17, М(0xffcf33));             // машинка
+  короб(1.0, 0.6, 1.0, ARENA-8.3, 1.1, -ARENA+17, М(0x38bdf8));
+  // 🚪 ПРИХОЖАЯ — вдоль стены (−X центр)
+  пол(-ARENA+2, -6, -ARENA+14, 8, 0xa08a70);
+  короб(4.4, 2.2, 1.8, -ARENA+5, 1.1, -3, М(0x7a5230));                    // комод
+  короб(4.4, 2.2, 1.8, -ARENA+5, 1.1, 5, М(0x7a5230));
+  короб(0.4, 5.0, 0.4, -ARENA+11, 2.5, 1, М(0x8a8f9a, .4));                // вешалка
+  for (const s of [-1, 1]) короб(1.2, 2.6, 0.8, -ARENA+11, 3.0, 1+s*0.9,
+    М(s > 0 ? 0x374151 : 0x7f1d1d));                                       // пальто
+  короб(0.3, 4.0, 2.0, -ARENA+2.6, 2.0, 8, М(0xdfe8f2, .1, 1));            // зеркало
+  for (let i = 0; i < 5; i++) {                                            // разбросанные ботинки
+    const bx = -ARENA+4+ (i*2.3) % 8, bz = -5 + (i*3.1) % 11;
+    короб(1.4, 0.5, 0.7, bx, 0.3, bz, М([0x8b4513,0x1f2937,0x2563eb][i%3]), i*0.7);
+  }
 })();
 // гостиная растёт вместе с кухней, поэтому её границы умножаем на текущий масштаб
 function inSafe(v) { const s = arenaScale; return v.x > SAFE.x0 * s && v.x < SAFE.x1 * s && v.z > SAFE.z0 * s && v.z < SAFE.z1 * s; }
