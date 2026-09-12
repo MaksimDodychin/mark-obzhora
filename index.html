@@ -82,6 +82,37 @@
   #achToast { position: fixed; top: -110px; left: 50%; transform: translateX(-50%); z-index: 40; background: linear-gradient(180deg, #3a2a00, #171717); border: 2px solid #ffd23b; border-radius: 16px; padding: 10px 20px; font-weight: 800; box-shadow: 0 8px 24px #000a; transition: top .45s cubic-bezier(.2,1.3,.5,1); max-width: 92vw; text-align: center; }
   #achToast.show { top: 14px; }
   #achToast .t1 { font-size: 12px; color: #ffd23b; } #achToast .t2 { font-size: 17px; margin-top: 2px; }
+
+body.coop #bigMsg{top:25%;font-size:clamp(18px,3.7vw,32px);max-width:65vw;}
+/* Витрина занимает своё место: пылесос виден целиком и не перекрывает кнопки. */
+#menu{display:grid;grid-template-columns:minmax(300px,.95fr) minmax(320px,1.1fr);grid-template-rows:1fr auto;gap:16px 20px;background:transparent;align-items:center;padding:32px 5vw;}
+#menu .mtop{grid-column:1;grid-row:1;align-self:end;padding-bottom:12px;}
+#menu .mmid{grid-column:2;grid-row:1 / 3;align-self:stretch;width:100%;min-height:250px;padding:0 0 24px;pointer-events:none;}
+#menu .mmid .sub{padding:8px 16px;border:1px solid #b2efff28;border-radius:20px;background:#102e3abc;}
+#menu .mbot{grid-column:1;grid-row:2;align-self:start;padding-bottom:24px;}
+#menu h1{font-size:clamp(25px,3.2vw,48px);line-height:1.05;color:#f2fbff;text-shadow:0 3px 0 #082030,0 0 40px #53d0ed40;}
+#menu .sub{font-size:clamp(12px,1.2vw,16px);color:#c8e0e7;}
+#menu .swatches{gap:9px;max-width:380px;}
+#menu .sw{width:44px;height:44px;border-width:3px;box-shadow:inset 0 2px 5px #ffffff55,0 4px 12px #0006;}
+#menu .btn{padding:12px 22px;font-size:18px;border-radius:14px;}
+.card{background:linear-gradient(150deg,#102d40ee,#122035e6);border:1px solid #a5e0f42b;box-shadow:0 5px 20px #020b1830;}
+.dbtn{background:linear-gradient(150deg,#355c72e6,#1b334bd9);border-color:#bbefff66;}
+@media(max-height:500px) and (orientation:landscape){
+ #menu{padding:14px 24px;gap:8px 16px;grid-template-columns:minmax(270px,.9fr) minmax(260px,1fr);}
+ #menu .mtop{gap:4px;padding-bottom:0;}#menu h1{font-size:26px;}
+ #menu .mtop>.sub:nth-of-type(2){font-size:10px!important;}#menu .sub{font-size:11px;line-height:1.25;}
+ #menu .mbot{gap:8px;padding-bottom:0;}#menu .sw{width:32px;height:32px;}#menu .swatches{gap:7px;max-width:340px;}
+ #menu .btn{font-size:14px;padding:8px 16px;}#menu .mbot>.sub{font-size:9px!important;max-width:300px;}
+ #menu .mmid{min-height:200px;padding-bottom:10px;}#menu .mmid .sub{font-size:10px;padding:5px 10px;}
+ #hud{padding:6px;}#board{font-size:10px;min-width:100px;}.card{padding:5px 8px;}#hint{bottom:5px;font-size:10px;max-width:52vw;padding:5px 10px;}
+ body.coop #dpad.show,#dpad2{grid-template-columns:repeat(3,40px);grid-template-rows:repeat(3,40px);gap:4px;}
+}
+@media(orientation:portrait){
+ #menu{padding:22px 18px 28px;grid-template-columns:1fr;grid-template-rows:auto minmax(130px,1fr) auto;gap:10px;}
+ #menu .mtop{grid-column:1;grid-row:1;}#menu .mmid{grid-column:1;grid-row:2;min-height:0;padding-bottom:0;}
+ #menu .mbot{grid-column:1;grid-row:3;padding-bottom:0;}#menu .sub{font-size:12px;}#menu .sw{width:36px;height:36px;}#menu .btn{font-size:15px;padding:10px 18px;}
+}
+
 </style>
 
   <link rel="manifest" href="manifest.webmanifest">
@@ -95,7 +126,7 @@
   <link rel="apple-touch-icon-precomposed" sizes="180x180" href="apple-touch-icon.png">
   <meta name="msapplication-TileImage" content="icon-192.png">
   <meta name="msapplication-TileColor" content="#2a2438">
-  <script>window.__APP_VER = "93d230646d";</script>
+  <script>window.__APP_VER = "bbfebb9552";</script>
 </head>
 <body>
 <div id="err"></div>
@@ -207,6 +238,54 @@ sun.shadow.mapSize.set(2048, 2048); sun.shadow.camera.left = -60; sun.shadow.cam
 sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.025; scene.add(sun);
 // заполняющий свет с другой стороны — без него «тёмная сторона» пылесосов чёрная
 const fill = new THREE.DirectionalLight(0xbcd4ff, 0.35); fill.position.set(-24, 18, -20); scene.add(fill);
+
+// Материалы, узнаваемый робот и витрина. Размеры игровой модели и правила прежние.
+const astraTouch=matchMedia('(hover:none), (pointer:coarse)').matches;
+renderer.setPixelRatio(Math.min(devicePixelRatio,astraTouch?1.2:1.65));
+renderer.outputColorSpace=THREE.SRGBColorSpace;
+renderer.toneMappingExposure=1.06;
+sun.intensity=2.15;fill.intensity=.8;
+sun.shadow.normalBias=.06;sun.shadow.radius=3;renderer.shadowMap.autoUpdate=false;
+sun.shadow.mapSize.set(astraTouch?1024:2048,astraTouch?1024:2048);
+function astraMap(size,draw){const c=document.createElement('canvas');c.width=c.height=size;draw(c.getContext('2d'),size);const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=Math.min(8,renderer.capabilities.getMaxAnisotropy());t.userData.astraShared=true;return t;}
+function astraRandom(seed=89){return()=>{seed=(1664525*seed+1013904223)>>>0;return seed/4294967296;};}
+const astraRoundCache=new Map();
+function astraRoundBox(w,h,d,r){r=Math.min(r??.08,w*.16,h*.16,d*.16);const key=[w,h,d,r].join('/');if(astraRoundCache.has(key))return astraRoundCache.get(key);const g=new THREE.BoxGeometry(1,1,1,4,4,4).toNonIndexed(),p=g.attributes.position,n=g.attributes.normal,v=new THREE.Vector3(),normal=new THREE.Vector3();for(let i=0;i<p.count;i++){v.fromBufferAttribute(p,i);normal.set(Math.max(-.125,Math.min(.125,v.x)),Math.max(-.125,Math.min(.125,v.y)),Math.max(-.125,Math.min(.125,v.z)));/* projecting all six face patches onto one rounded cuboid */normal.set(Math.abs(v.x)>.249?Math.sign(v.x)*(Math.abs(v.x)-.249):0,Math.abs(v.y)>.249?Math.sign(v.y)*(Math.abs(v.y)-.249):0,Math.abs(v.z)>.249?Math.sign(v.z)*(Math.abs(v.z)-.249):0).normalize();const core=[w/2-r,h/2-r,d/2-r];p.setXYZ(i,Math.sign(v.x)*Math.min(Math.abs(v.x)*4,1)*core[0]+normal.x*r,Math.sign(v.y)*Math.min(Math.abs(v.y)*4,1)*core[1]+normal.y*r,Math.sign(v.z)*Math.min(Math.abs(v.z)*4,1)*core[2]+normal.z*r);n.setXYZ(i,normal.x,normal.y,normal.z);}g.computeBoundingSphere();g.computeBoundingBox();g.userData.astraShared=true;astraRoundCache.set(key,g);return g;}
+function astraEnvironment(){const s=new THREE.Scene();s.background=new THREE.Color(0x929da9);const shell=new THREE.Mesh(new THREE.BoxGeometry(32,26,32),new THREE.MeshBasicMaterial({color:0x909dac,side:THREE.BackSide}));s.add(shell);for(const [x,y,z,w,h,d,c,v] of [[-15,4,0,.1,14,20,0xcfeaff,2.8],[4,12,-5,18,.1,13,0xffebd4,4.8],[15,2,5,.1,10,6,0xffddb7,2.4]]){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshBasicMaterial({color:new THREE.Color(c).multiplyScalar(v)}));m.position.set(x,y,z);s.add(m);}const gen=new THREE.PMREMGenerator(renderer);scene.environment=gen.fromScene(s,.08).texture;gen.dispose();s.traverse(o=>{o.geometry?.dispose();o.material?.dispose();});}astraEnvironment();
+const astraDisplay=astraMap(256,(g,n)=>{g.fillStyle='#061723';g.fillRect(0,0,n,n);g.strokeStyle='#18556c';g.lineWidth=3;for(let i=28;i<n;i+=25){g.beginPath();g.moveTo(0,i);g.lineTo(n,i);g.stroke();}g.strokeStyle='#61efff';g.lineWidth=9;g.beginPath();g.arc(128,122,70,-Math.PI*.78,Math.PI*.78);g.stroke();g.fillStyle='#bafcff';g.font='bold 58px system-ui';g.textAlign='center';g.fillText('100',128,143);g.font='bold 17px system-ui';g.fillText('POWER',128,180);});
+const astraContactTex=astraMap(128,(g,n)=>{const gr=g.createRadialGradient(n/2,n/2,5,n/2,n/2,n*.48);gr.addColorStop(0,'rgba(17,29,40,.38)');gr.addColorStop(.6,'rgba(17,29,40,.2)');gr.addColorStop(1,'rgba(17,29,40,0)');g.fillStyle=gr;g.fillRect(0,0,n,n);});
+function astraVacuum(g,hex){
+ const skin=new Set(g.userData.skinMeshes);
+ g.traverse(o=>{if(!o.isMesh)return;const m=o.material;
+  if(skin.has(o)){o.material=new THREE.MeshPhysicalMaterial({color:hex,roughness:.27,metalness:.12,clearcoat:.85,clearcoatRoughness:.2,envMapIntensity:.7});m.dispose();}
+  else if(m.isMeshStandardMaterial){m.envMapIntensity=.65;if(m.color.getHex()===0xffffff){m.roughness=.3;}if(o.geometry.type==='TorusGeometry'&&o.position.y>.1)m.roughness=.75;}
+  if(o.geometry.type==='CylinderGeometry'){const p=o.geometry.parameters;if(p.radialSegments>=12&&p.radialSegments<48){const old=o.geometry;o.geometry=new THREE.CylinderGeometry(p.radiusTop,p.radiusBottom,p.height,48,p.heightSegments,p.openEnded,p.thetaStart,p.thetaLength);old.dispose();}}
+  if(o.geometry.type==='SphereGeometry'&&o!==g.userData.shield){const p=o.geometry.parameters,old=o.geometry;o.geometry=new THREE.SphereGeometry(p.radius,20,14);old.dispose();}
+  o.receiveShadow=true;o.castShadow=!m.transparent;
+ });
+ const metal=new THREE.MeshStandardMaterial({color:0xd2dbe0,metalness:.88,roughness:.25,envMapIntensity:.75});
+ const dark=new THREE.MeshStandardMaterial({color:0x18232d,metalness:.18,roughness:.42});
+ function ring(r,t,y,m=metal){const o=new THREE.Mesh(new THREE.TorusGeometry(r,t,8,64),m);o.rotation.x=Math.PI/2;o.position.y=y;g.add(o);return o;}
+ ring(.94,.018,.522);ring(.735,.013,.665);ring(.204,.014,.776);
+ const screen=g.children.find(o=>o.geometry?.type==='CircleGeometry');if(screen){screen.material.map=astraDisplay;screen.material.color.set(0xffffff);screen.material.emissive.set(0x3dc6db);screen.material.emissiveMap=astraDisplay;screen.material.emissiveIntensity=.3;screen.material.roughness=.2;screen.material.metalness=.1;screen.material.needsUpdate=true;}
+ for(const x of [-.32,.32]){const shine=new THREE.Mesh(new THREE.SphereGeometry(.03,10,8),new THREE.MeshBasicMaterial({color:0xffffff}));shine.position.set(x-.027,.544,.922);g.add(shine);}
+ for(const x of [-.997,.997]){const hub=new THREE.Mesh(new THREE.CylinderGeometry(.13,.13,.013,20),metal);hub.rotation.z=Math.PI/2;hub.position.set(x,.14,-.15);g.add(hub);}
+ for(const b of [g.userData.brush,g.userData.brush2]){for(const arm of b.children){const bristleGeo=new THREE.BufferGeometry(),p=[];for(let k=0;k<5;k++)p.push(.43,.001,(k-2)*.018,.62,0,(k-2)*.034);bristleGeo.setAttribute('position',new THREE.Float32BufferAttribute(p,3));const bristles=new THREE.LineSegments(bristleGeo,new THREE.LineBasicMaterial({color:0x654326}));arm.add(bristles);}const hub=new THREE.Mesh(new THREE.CylinderGeometry(.11,.13,.09,16),dark);b.add(hub);}
+ const shadow=new THREE.Mesh(new THREE.PlaneGeometry(2.65,2.45),new THREE.MeshBasicMaterial({map:astraContactTex,transparent:true,depthWrite:false,opacity:.8}));shadow.rotation.x=-Math.PI/2;shadow.position.y=.013;shadow.name='astra-contact';g.add(shadow);
+ g.userData.shield.material.depthWrite=false;
+ g.userData.shield.castShadow=false;g.userData.shield.receiveShadow=false;
+ return g;
+}
+function astraDispose(root){const gs=new Set(),ms=new Set();root?.traverse(o=>{if(o.geometry&&!o.geometry.userData.astraShared)gs.add(o.geometry);const mats=Array.isArray(o.material)?o.material:[o.material];for(const m of mats)if(m)ms.add(m);});gs.forEach(g=>g.dispose());ms.forEach(m=>m.dispose());}
+const astraGallery=new THREE.Scene();astraGallery.background=new THREE.Color(0x112c3a);astraGallery.environment=scene.environment;
+astraGallery.add(new THREE.HemisphereLight(0xe4f5ff,0x355267,1.5));
+const astraKey=new THREE.DirectionalLight(0xffe4bd,3.2);astraKey.position.set(4,8,6);astraGallery.add(astraKey);
+const astraRim=new THREE.DirectionalLight(0x6dcfff,1.6);astraRim.position.set(-5,4,-4);astraGallery.add(astraRim);
+const astraGalleryCam=new THREE.PerspectiveCamera(36,1,.1,100);
+const astraPodium=new THREE.Mesh(new THREE.CylinderGeometry(4.8,5.1,.26,64),new THREE.MeshStandardMaterial({color:0x20495a,roughness:.38,metalness:.45}));astraPodium.position.y=-.2;astraGallery.add(astraPodium);
+const astraPodiumRing=new THREE.Mesh(new THREE.TorusGeometry(4.91,.035,6,96),new THREE.MeshBasicMaterial({color:0x70d2e6}));astraPodiumRing.rotation.x=-Math.PI/2;astraPodiumRing.position.y=-.09;astraGallery.add(astraPodiumRing);
+function astraRenderMenu(){const r=document.querySelector('.mmid').getBoundingClientRect();if(r.width<1||r.height<1)return;renderer.setScissorTest(false);renderer.setViewport(0,0,innerWidth,innerHeight);renderer.setClearColor(0x112c3a);renderer.clear();renderer.setScissorTest(true);renderer.setScissor(r.left,innerHeight-r.bottom,r.width,r.height);renderer.setViewport(r.left,innerHeight-r.bottom,r.width,r.height);astraGalleryCam.aspect=r.width/r.height;astraGalleryCam.updateProjectionMatrix();const k=astraGalleryCam.aspect<1?1/astraGalleryCam.aspect:1;astraGalleryCam.position.set(10*k,9*k,13*k);astraGalleryCam.lookAt(0,.8,0);renderer.render(astraGallery,astraGalleryCam);renderer.setScissorTest(false);renderer.setViewport(0,0,innerWidth,innerHeight);}
+function prepareObzhoraView(cam){const high=cam.position.y/arenaScale>CEIL-1.5;ceiling.visible=!high;потолочнаяЛампа.visible=!high;}
 
 // ==== пол-кухня (клетчатая плитка) ====
 function tileTexture() {
@@ -497,6 +576,322 @@ buildRoomWalls({ имя:'🚪 Прихожая', x0:-ARENA+2, z0:-6,        x1:-
   обои:'панели',    фон:0xe6dcc8, узор:0x9c7346 });
 
 // комнаты растут вместе с кухней, поэтому границы умножаем на текущий масштаб
+/* Visual apartment pass for Obzhora. Call once after the five SAFES are built.
+   Coordinates remain in kitchen-local space; no collision or game data is changed. */
+function decorateObzhoraApartment(kitchen, SAFES, walls) {
+  if (kitchen.userData.odgaDecor) return kitchen.userData.odgaDecor;
+  const odgaRoot=new THREE.Group();odgaRoot.name='obzhora-apartment-art';
+  odgaRoot.userData.odgaDecor=true;kitchen.userData.odgaDecor=odgaRoot;
+  let odgaSeed=280923;
+  const random=()=>{odgaSeed=(Math.imul(odgaSeed,1664525)+1013904223)>>>0;return odgaSeed/4294967296;};
+  const tau=Math.PI*2, old=[];kitchen.traverse(o=>{if(o.isMesh)old.push(o);});
+  const near=(a,b)=>Math.abs(a-b)<.025;
+  function at(x,y,z){return old.find(o=>near(o.position.x,x)&&near(o.position.y,y)&&near(o.position.z,z));}
+  function size(o){if(!o.geometry.boundingBox)o.geometry.computeBoundingBox();return o.geometry.boundingBox.getSize(new THREE.Vector3());}
+  function tex(w,h,paint,repeat=true){
+    const c=document.createElement('canvas');c.width=w;c.height=h;paint(c.getContext('2d'),w,h);
+    const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=4;
+    t.userData.obzhoraOwned=true;t.userData.battleOwned=true;
+    if(repeat)t.wrapS=t.wrapT=THREE.RepeatWrapping;return t;
+  }
+  function grain(ctx,w,h,n=6000,alpha=.075){
+    for(let i=0;i<n;i++){ctx.fillStyle=i%2?'rgba(255,248,222,'+alpha+')':'rgba(38,35,27,'+(alpha*.47)+')';ctx.fillRect(random()*w,random()*h,1+random()*2,1);}
+  }
+  const weave=tex(256,256,(c,w,h)=>{
+    c.fillStyle='#e7e1d6';c.fillRect(0,0,w,h);
+    for(let i=0;i<w;i+=3){c.fillStyle=i%2?'#ded8cc':'#efe9dd';c.fillRect(i,0,1,h);c.fillStyle='rgba(80,74,64,.07)';c.fillRect(0,i,w,1);}
+    grain(c,w,h,1800,.10);
+  });
+  const oak=tex(512,512,(c,w,h)=>{
+    c.fillStyle='#b68d61';c.fillRect(0,0,w,h);
+    for(let row=0;row<8;row++){
+      c.fillStyle=['#b68d61','#c49a6b','#bb9162','#c49b70'][row%4];c.fillRect(0,row*64,w,64);
+      for(let i=0;i<26;i++){
+        const yy=row*64+random()*63;c.strokeStyle=i%3?'rgba(78,51,24,.11)':'rgba(254,231,174,.20)';c.lineWidth=.45+random();
+        c.beginPath();c.moveTo(-5,yy);c.bezierCurveTo(145,yy-4+random()*8,310,yy-6+random()*12,517,yy+random()*4);c.stroke();
+      }
+    }
+    grain(c,w,h,4000,.06);
+  });
+  const materialCache=new Map();
+  function mat(color,roughness=.7,metalness=0,map=null){
+    const key=color+'/'+roughness+'/'+metalness+'/'+(map?map.uuid:'');
+    if(!materialCache.has(key))materialCache.set(key,new THREE.MeshStandardMaterial({color,roughness,metalness,map,envMapIntensity:.4}));
+    return materialCache.get(key);
+  }
+  const wood=mat('#ffffff',.63,0,oak),warmWood=mat('#c8ad8d',.68,0,oak),cream=mat('#eee5cd',.68),brass=mat('#bda06c',.31,.7),dark=mat('#334a4b',.49),ceramic=mat('#efe9d9',.23);
+  const fabric=c=>mat(c,.95,0,weave);
+  function mesh(parent,geo,m,x=0,y=0,z=0,cast=false){
+    const o=new THREE.Mesh(geo,m);o.position.set(x,y,z);o.castShadow=cast;o.receiveShadow=true;parent.add(o);return o;
+  }
+  function rounded(w,h,d,r=.06){return typeof astraRoundBox==='function'?astraRoundBox(w,h,d,r):new THREE.BoxGeometry(w,h,d);}
+  function box(parent,w,h,d,m,x=0,y=0,z=0,r=.03,cast=false){return mesh(parent,rounded(w,h,d,Math.min(r,w*.23,h*.23,d*.23)),m,x,y,z,cast);}
+  function cyl(parent,rt,rb,h,m,x,y,z,segs=16){return mesh(parent,new THREE.CylinderGeometry(rt,rb,h,segs),m,x,y,z,true);}
+  function sph(parent,r,m,x,y,z,sx=1,sy=1,sz=1){const o=mesh(parent,new THREE.SphereGeometry(r,16,12),m,x,y,z,true);o.scale.set(sx,sy,sz);return o;}
+  function rod(parent,a,b,r,m){
+    const av=new THREE.Vector3(...a),bv=new THREE.Vector3(...b),delta=bv.clone().sub(av),o=cyl(parent,r,r,delta.length(),m,0,0,0,10);
+    o.position.copy(av.add(bv).multiplyScalar(.5));o.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),delta.normalize());return o;
+  }
+  function anchor(x,z,ry=0){const g=new THREE.Group();g.position.set(x,0,z);g.rotation.y=ry;odgaRoot.add(g);return g;}
+  function replaceMaterial(o,m){if(o)o.material=m;}
+  function rescaleUV(o,x,y){
+    o.geometry=o.geometry.clone();const uv=o.geometry.attributes.uv;if(!uv)return;
+    for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)*x,uv.getY(i)*y);uv.needsUpdate=true;
+  }
+  // One map per room, reused by every existing wall segment in that room.
+  const palettes=[
+    {upper:'#e3e8dc',lower:'#729c98',rug:'#466e73',edge:'#d4b67d',kind:'leaf'},
+    {upper:'#eae2e7',lower:'#ad95ae',rug:'#9b869f',edge:'#ddd0b6',kind:'stripe'},
+    {upper:'#d7e7df',lower:'#7dacac',rug:'#adc9c6',edge:'#e2e8dc',kind:'tile'},
+    {upper:'#f0e3d1',lower:'#aec0a5',rug:'#d6b6a0',edge:'#769b99',kind:'dot'},
+    {upper:'#ece1cb',lower:'#a58169',rug:'#b8905e',edge:'#e3ceaa',kind:'panel'}
+  ];
+  function paintWall(p){
+    return tex(512,512,(c,w,h)=>{
+      c.fillStyle=p.upper;c.fillRect(0,0,w,h);
+      if(p.kind==='tile'){
+        for(let y=0;y<512;y+=64)for(let x=0;x<512;x+=64){c.fillStyle=(x+y)%128?'#d2e3dc':'#e1eae1';c.fillRect(x+2,y+2,60,60);c.strokeStyle='rgba(255,255,247,.35)';c.lineWidth=2;c.strokeRect(x+5,y+5,54,54);}
+      }else if(p.kind==='stripe'){
+        for(let x=0;x<w;x+=48){c.fillStyle='rgba(141,116,146,.07)';c.fillRect(x,0,20,345);}
+      }else if(p.kind==='dot'){
+        for(let y=30;y<330;y+=69)for(let x=27;x<w;x+=86){c.fillStyle=['#c2bba0','#d3a28d','#a3b8a3'][(x+y)%3];c.beginPath();c.arc(x+(y%2)*17,y,3,0,tau);c.fill();}
+      }else if(p.kind==='leaf'){
+        for(let y=36;y<330;y+=100)for(let x=40;x<w;x+=100){c.strokeStyle='rgba(90,115,91,.07)';c.lineWidth=2;c.beginPath();c.moveTo(x,y+17);c.quadraticCurveTo(x+8,y,x+3,y-18);c.stroke();}
+      }
+      c.fillStyle=p.lower;c.fillRect(0,346,w,166);
+      for(let x=0;x<w;x+=128){c.strokeStyle='rgba(245,240,215,.17)';c.lineWidth=3;c.strokeRect(x+13,363,102,130);c.strokeStyle='rgba(47,51,40,.11)';c.lineWidth=2;c.strokeRect(x+16,366,96,124);}
+      c.fillStyle='#eae3d0';c.fillRect(0,342,w,7);c.fillRect(0,487,w,25);grain(c,w,h,4500,.065);
+    });
+  }
+  const wallMaterials=palettes.map(p=>mat('#ffffff',p.kind==='tile'?.34:.86,0,paintWall(p)));
+  function carpet(p,kind){
+    return tex(768,768,(c,w,h)=>{
+      c.fillStyle=p.rug;c.fillRect(0,0,w,h);
+      c.strokeStyle=p.edge;c.lineWidth=18;c.strokeRect(25,25,w-50,h-50);c.lineWidth=4;c.strokeRect(48,48,w-96,h-96);
+      if(kind===0){
+        c.save();c.translate(w/2,h/2);c.scale(1,.8);c.strokeStyle=p.edge;c.lineWidth=7;
+        for(let r=83;r<290;r+=52){c.beginPath();c.ellipse(0,0,r,r,0,0,tau);c.stroke();}
+        for(let i=0;i<12;i++){const a=i*tau/12;c.save();c.rotate(a);c.fillStyle='#93aaa0';c.beginPath();c.ellipse(0,-177,17,38,0,0,tau);c.fill();c.restore();}c.restore();
+      }else if(kind===3){
+        c.strokeStyle='#e8ceb0';c.lineWidth=13;
+        for(let i=0;i<4;i++){c.beginPath();c.arc(w/2,h/2+60,100+i*36,Math.PI,0);c.stroke();c.strokeStyle=['#ebd3b9','#749b99','#d6bf86','#9bad9c'][i];}
+        for(const s of [-1,1]){c.fillStyle='#e8cfb4';c.beginPath();c.ellipse(w/2+s*191,h/2+76,51,24,0,0,tau);c.fill();}
+      }else{
+        c.strokeStyle='rgba(233,220,202,.12)';c.lineWidth=2;for(let y=64;y<h-60;y+=20){c.beginPath();c.moveTo(57,y);c.lineTo(w-57,y);c.stroke();}
+      }
+      for(let i=0;i<w;i+=3){c.fillStyle='rgba(255,245,220,.055)';c.fillRect(i,0,1,h);c.fillStyle='rgba(41,34,29,.045)';c.fillRect(0,i,w,1);}
+      grain(c,w,h,15000,.16);
+    },false);
+  }
+  const kitchenTiles=tex(512,512,(c,w,h)=>{
+    for(let y=0;y<2;y++)for(let x=0;x<2;x++){
+      const px=x*256,py=y*256;c.fillStyle=(x+y)%2?'#84968f':'#b7b5a1';c.fillRect(px,py,256,256);
+      const g=c.createLinearGradient(px,py,px+256,py+256);g.addColorStop(0,'rgba(252,246,219,.09)');g.addColorStop(1,'rgba(62,62,47,.09)');c.fillStyle=g;c.fillRect(px+3,py+3,250,250);
+      c.strokeStyle='#8b9389';c.lineWidth=3;c.strokeRect(px,py,256,256);c.strokeStyle='rgba(244,240,216,.19)';c.lineWidth=2;c.strokeRect(px+4,py+4,248,248);
+    }
+    grain(c,w,h,10000,.055);
+  });kitchenTiles.repeat.set(12,12);
+  const bathTiles=tex(512,512,(c,w,h)=>{
+    c.fillStyle='#bacbc4';c.fillRect(0,0,w,h);
+    for(let y=0;y<4;y++)for(let x=0;x<4;x++){const px=x*128,py=y*128;c.fillStyle=(x+y)%2?'#aac6c1':'#d2dfd3';c.fillRect(px+2,py+2,124,124);c.strokeStyle='rgba(251,251,236,.25)';c.lineWidth=2;c.strokeRect(px+5,py+5,118,118);}
+    grain(c,w,h,7000,.06);
+  });bathTiles.repeat.set(3,3);
+  const hallParquet=tex(768,768,(c,w,h)=>{
+    c.fillStyle='#a37c51';c.fillRect(0,0,w,h);
+    for(let row=0;row<12;row++)for(let col=-1;col<3;col++){
+      const px=col*384+(row%2)*192,py=row*64;c.fillStyle=['#b58c5b','#c39862','#ae8555','#bb9060'][(row+col+5)%4];c.fillRect(px+2,py+2,380,60);
+      for(let j=0;j<20;j++){const y=py+5+random()*54;c.strokeStyle=j%2?'rgba(63,37,18,.12)':'rgba(250,215,151,.15)';c.lineWidth=.7;c.beginPath();c.moveTo(px+5,y);c.bezierCurveTo(px+80,y+3,px+250,y-4,px+377,y);c.stroke();}
+    }grain(c,w,h,4000,.05);
+  });hallParquet.repeat.set(1.4,1.7);
+  const baseFloor=old.find(o=>near(o.position.y,-.5)&&size(o).x>55&&size(o).z>55);
+  replaceMaterial(baseFloor,mat('#ffffff',.69,0,kitchenTiles));
+  SAFES.forEach((R,i)=>{
+    const cx=(R.x0+R.x1)/2,cz=(R.z0+R.z1)/2,fl=old.find(o=>near(o.position.x,cx)&&near(o.position.z,cz)&&o.position.y<.1&&size(o).x>8&&size(o).z>8);
+    const map=i===2?bathTiles:i===4?hallParquet:carpet(palettes[i],i);
+    replaceMaterial(fl,mat('#ffffff',i===2?.37:i===4?.64:.97,0,map));
+  });
+  // Preserve the AABBs: materials and cornices are applied to the exact old wall spans.
+  walls.forEach(w=>{
+    const cx=(w.minX+w.maxX)/2,cz=(w.minZ+w.maxZ)/2;
+    const o=old.find(m=>near(m.position.x,cx)&&near(m.position.z,cz)&&near(m.position.y,1.6)&&near(size(m).x,w.maxX-w.minX)&&near(size(m).z,w.maxZ-w.minZ));
+    if(!o)return;
+    let index=0,best=Infinity;
+    SAFES.forEach((R,i)=>{const dx=Math.max(R.x0-cx,0,cx-R.x1),dz=Math.max(R.z0-cz,0,cz-R.z1),d=dx*dx+dz*dz;if(d<best){best=d;index=i;}});
+    o.material=wallMaterials[index];o.receiveShadow=true;
+    const sx=w.maxX-w.minX,sz=w.maxZ-w.minZ;rescaleUV(o,Math.max(sx,sz)/4,1);
+    // Each cap is inside the wall's horizontal footprint, including next to openings.
+    box(odgaRoot,sx,.095,sz,cream,cx,3.153,cz,.018);
+    box(odgaRoot,sx,.11,sz,cream,cx,.058,cz,.012);
+  });
+  const exteriorPaint=tex(512,512,(c,w,h)=>{c.fillStyle='#e0dece';c.fillRect(0,0,w,h);grain(c,w,h,9500,.065);});
+  const exteriorMat=mat('#ffffff',.88,0,exteriorPaint);
+  old.forEach(o=>{
+    const s=size(o),color=o.material?.color?.getHex();
+    if(s.y>25&&Math.max(s.x,s.z)>60){o.material=exteriorMat;o.receiveShadow=true;return;}
+    if(s.y>3.15&&s.y<3.25&&s.x<.9&&s.z<.9){
+      const m=mat('#d4b264',.43,.15);m.emissive=new THREE.Color('#cfaa55');m.emissiveIntensity=.18;o.material=m;return;
+    }
+    if([0x5d3a20,0x6b4423,0x7a5230,0x8a5a3a,0x9a6b3f].includes(color))o.material=wood;
+    const fabrics={3898367:'#628d94',8150230:'#a68ca5',4953781:'#82a1ad',11826746:'#b48a5b'};
+    if(fabrics[color])o.material=fabric(fabrics[color]);
+    if(color===0xf2a6c0)o.material=mat('#d9ad9c',.59);if(color===0xe98cae)o.material=mat('#c58f83',.62);
+    if(color===0x888888||color===0x8a8f9a)o.material=brass;
+    if((color===0xffffff||color===0xf2f2f2)&&!o.material.map)o.material=ceramic;
+    o.receiveShadow=true;
+  });
+  // Textile materials at stable existing bed and seating positions.
+  for(const x of [-24,-17]){
+    replaceMaterial(at(x,1.2,15),fabric('#a287a6'));replaceMaterial(at(x,1.25,17.9),fabric('#efe6d3'));replaceMaterial(at(x,.95,16),fabric('#e7dfcc'));
+    const stripe=box(odgaRoot,3.16,.035,.10,fabric('#d6c9b5'),x,1.337,15.85,.01);stripe.castShadow=false;
+  }
+  replaceMaterial(at(14,.85,-23),fabric('#eadfcb'));
+  replaceMaterial(at(18,.5,8.2),fabric('#477f88'));replaceMaterial(at(18,.9,7.6),fabric('#477f88'));
+  // Sectional cushions and arms fit entirely inside the existing sofa footprint.
+  for(const x of [13.3,22.7])box(odgaRoot,.46,1.02,1.36,fabric('#477f88'),x,.91,8.2,.14,true);
+  for(const x of [14.56,16.87,19.18,21.49])box(odgaRoot,2.17,.23,1.04,fabric('#6a969b'),x,.884,8.35,.12,true);
+  for(const [x,c] of [[14.6,'#d0b47f'],[18.0,'#bfa99e'],[21.35,'#b3c2a1']])box(odgaRoot,.69,.49,.25,fabric(c),x,1.14,7.94,.11,true).rotation.z=.08*(x-18);
+  // One shared illustration atlas, rather than a texture for each picture.
+  const artAtlas=tex(1536,512,(c,w,h)=>{
+    const circle=(x,y,r,color)=>{c.fillStyle=color;c.beginPath();c.arc(x,y,r,0,tau);c.fill();};
+    for(let p=0;p<3;p++){
+      const ox=p*512;c.fillStyle='#efe5ce';c.fillRect(ox,0,512,512);c.save();c.translate(ox,0);
+      if(p===0){
+        c.fillStyle='#b6cec0';c.fillRect(23,23,466,466);circle(361,145,49,'#e9c57e');
+        ['#90b19d','#638e83','#426d6d'].forEach((col,i)=>{c.fillStyle=col;c.beginPath();c.moveTo(23,489);c.lineTo(23,249+i*57);c.bezierCurveTo(190,174+i*93,336,375+i*35,489,254+i*74);c.lineTo(489,489);c.fill();});
+      }else if(p===1){
+        circle(327,190,111,'#dfb795');c.fillStyle='#b3896a';c.beginPath();c.moveTo(153,365);c.lineTo(363,365);c.lineTo(333,463);c.lineTo(183,463);c.fill();
+        [[240,359,193,105],[264,365,349,210],[251,365,127,232]].forEach(([x,y,tx,ty])=>{
+          c.strokeStyle='#527965';c.lineWidth=8;c.beginPath();c.moveTo(x,y);c.quadraticCurveTo(tx-7,y-80,tx,ty);c.stroke();
+          for(let j=0;j<4;j++){c.save();c.translate(x+(tx-x)*(j+.4)/4,y+(ty-y)*(j+.4)/4);c.rotate((j%2?.5:-.5));c.fillStyle=j%2?'#789475':'#4c7964';c.beginPath();c.ellipse(j%2?17:-17,0,39,15,j%2?-.4:.4,0,tau);c.fill();c.restore();}
+        });
+      }else{
+        c.fillStyle='#657e89';c.fillRect(23,23,466,466);circle(380,128,56,'#e8ca87');
+        for(let i=0;i<24;i++)circle(40+random()*430,40+random()*430,2+random()*2,'#e5ddc5');
+        c.save();c.translate(240,295);c.rotate(.37);c.fillStyle='#d7a361';c.beginPath();c.moveTo(-22,65);c.lineTo(0,136);c.lineTo(22,65);c.fill();
+        c.fillStyle='#c68671';c.beginPath();c.moveTo(-39,0);c.lineTo(-65,80);c.lineTo(65,80);c.lineTo(39,0);c.fill();
+        c.fillStyle='#e9e0ca';c.beginPath();c.moveTo(-35,76);c.lineTo(-35,-34);c.quadraticCurveTo(-32,-84,0,-110);c.quadraticCurveTo(32,-84,35,-34);c.lineTo(35,76);c.fill();circle(0,-16,23,'#82afb3');circle(0,-16,15,'#547d89');c.restore();
+      }grain(c,512,512,1600,.035);c.restore();
+    }
+  },false);
+  const artMat=mat('#ffffff',.96,0,artAtlas);
+  function picture(parent,x,y,w,h,art=0){
+    box(parent,w,h,.09,wood,x,y,.027,.025);box(parent,w-.12,h-.12,.025,cream,x,y,.085,.012);
+    const geo=new THREE.PlaneGeometry(w-.27,h-.27),uv=geo.attributes.uv;
+    for(let i=0;i<uv.count;i++)uv.setX(i,(art+uv.getX(i))/3);
+    mesh(parent,geo,artMat,x,y,.102);
+  }
+  const livingBack=anchor(0,6.035,0);picture(livingBack,18,2.12,3.9,1.77,0);
+  const livingFar=anchor(28.005,0,-Math.PI/2);picture(livingFar,23,2.1,2.5,1.83,1);
+  const bedroomEntry=anchor(0,10.322,0);picture(bedroomEntry,-26.48,2.1,2.7,1.77,1);
+  const bathSide=anchor(-12.322,0,-Math.PI/2);picture(bathSide,-20.9,2.07,2.25,1.8,0);
+  const childSide=anchor(10.322,0,Math.PI/2);picture(childSide,22.5,2.04,2.83,1.91,2);
+  const childEntry=anchor(0,-10.322,Math.PI);picture(childEntry,-26.03,2.07,2.0,1.82,1);
+  const hallBack=anchor(0,-5.678,0);picture(hallBack,-22.8,2.1,3.1,1.8,1);
+  // Turn the old room pendants into attached wall lamps; no floating ceiling fragments.
+  [[1,bedroomEntry,-12.0],[2,bathSide,-15.35],[3,childSide,13.0],[4,hallBack,-17.3]].forEach(([idx,a,x])=>{
+    const R=SAFES[idx],cx=(R.x0+R.x1)/2,cz=(R.z0+R.z1)/2,cord=at(cx,3.6,cz),shade=at(cx,3.2,cz);
+    if(cord){a.add(cord);cord.position.set(x,2.63,.32);cord.rotation.x=Math.PI/2;cord.scale.set(1,.72,1);cord.material=brass;}
+    if(shade){a.add(shade);shade.position.set(x,2.53,.57);shade.scale.setScalar(.52);shade.material=mat('#f0dfb4',.64);}
+    const p=cyl(a,.13,.13,.06,brass,x,2.63,.065,14);p.rotation.x=Math.PI/2;
+  });
+  const scenic=tex(768,384,(c,w,h)=>{
+    const sky=c.createLinearGradient(0,0,0,h);sky.addColorStop(0,'#95c2d0');sky.addColorStop(.8,'#dce4c9');sky.addColorStop(1,'#c4d2b3');c.fillStyle=sky;c.fillRect(0,0,w,h);
+    c.fillStyle='#f3daa0';c.beginPath();c.arc(587,78,32,0,tau);c.fill();
+    c.fillStyle='rgba(255,252,231,.72)';[[100,67,67],[374,99,54],[670,143,57]].forEach(([x,y,r])=>{c.beginPath();c.ellipse(x,y,r,14,0,0,tau);c.ellipse(x+20,y-9,r*.57,18,0,0,tau);c.fill();});
+    ['#a2bca8','#7b9c88'].forEach((col,i)=>{c.fillStyle=col;c.beginPath();c.moveTo(0,h);c.lineTo(0,231+i*54);for(let x=0;x<=w;x+=32)c.lineTo(x,232+i*54+Math.sin(x*.009+i)*25);c.lineTo(w,h);c.fill();});
+    [[76,268,82,99],[246,281,72,87],[530,253,100,119]].forEach(([x,y,bw,bh],i)=>{
+      c.fillStyle=['#d6b587','#d9c5a4','#d1b08a'][i];c.fillRect(x,y,bw,bh);c.fillStyle='#6c8580';c.beginPath();c.moveTo(x-6,y);c.lineTo(x+bw/2,y-28);c.lineTo(x+bw+6,y);c.fill();
+      c.fillStyle='#e9e6c7';for(let xx=x+12;xx<x+bw-8;xx+=25)for(let yy=y+17;yy<y+bh-9;yy+=27)c.fillRect(xx,yy,12,16);
+    });
+    [[18,334,49],[194,343,56],[428,350,62],[729,339,53]].forEach(([x,y,r],i)=>{c.fillStyle=i%2?'#5c856c':'#638d72';c.beginPath();c.ellipse(x,y,r,r*.76,0,0,tau);c.fill();c.fillStyle='rgba(176,196,133,.24)';c.beginPath();c.ellipse(x-12,y-13,r*.62,r*.44,-.3,0,tau);c.fill();});
+  },false);
+  const viewMat=new THREE.MeshBasicMaterial({map:scenic,color:'#f0f7e6',toneMapped:true});
+  function windowPanel(a,x){
+    const y=10.4,w=7.2,h=6.1;
+    const pane=mesh(a,new THREE.PlaneGeometry(w,h),viewMat,x,y,.022);pane.receiveShadow=false;
+    for(const s of [-1,1])box(a,.16,h+.28,.19,cream,x+s*w/2,y,.12,.025);
+    for(const s of [-1,1])box(a,w+.28,.16,.19,cream,x,y+s*h/2,.12,.025);
+    box(a,.115,h,.19,cream,x,y,.13,.023);box(a,w,.095,.19,cream,x,y+.24,.13,.02);
+    box(a,w+.43,.15,.34,cream,x,y-h/2-.01,.12,.025);
+  }
+  const outerBack=anchor(0,-29.94,0),outerLeft=anchor(-29.94,0,Math.PI/2),outerRight=anchor(29.94,0,-Math.PI/2),outerFront=anchor(0,29.94,Math.PI);
+  for(const x of [-19.3,0,19.3])windowPanel(outerBack,x);
+  windowPanel(outerLeft,-16.7);for(const z of [-18.7,17.1])windowPanel(outerRight,z);
+  for(const a of [outerBack,outerLeft,outerRight,outerFront]){
+    box(a,59.8,.15,.10,cream,0,.1,.042,.015);box(a,59.8,.18,.16,cream,0,26.36,.055,.02);
+    box(a,59.8,.095,.12,warmWood,0,4.18,.045,.015);
+  }
+  // Kitchen joinery stays on the wall surface: nothing projects into the driving area.
+  const joinery=tex(768,384,(c,w,h)=>{
+    c.fillStyle='#dad9c5';c.fillRect(0,0,w,h);
+    for(let row=0;row<3;row++)for(let col=0;col<12;col++){c.strokeStyle='rgba(107,131,110,.14)';c.lineWidth=2;c.strokeRect(col*64,row*54,64,54);}
+    c.fillStyle='#58776c';c.fillRect(0,160,w,224);c.fillStyle='#e6d8b9';c.fillRect(0,153,w,15);
+    for(let i=0;i<6;i++){
+      const x=i*128;c.fillStyle='#8da18a';c.fillRect(x+5,178,118,196);c.strokeStyle='#aab79b';c.lineWidth=4;c.strokeRect(x+15,188,98,176);
+      c.fillStyle='#d7bb80';c.fillRect(x+103,216,5,37);
+    }grain(c,w,h,5000,.05);
+  });
+  const joinMat=mat('#ffffff',.66,0,joinery);
+  for(const a of [outerBack,outerLeft,outerRight,outerFront]){
+    const g=new THREE.PlaneGeometry(59.6,4.05),uv=g.attributes.uv;for(let i=0;i<uv.count;i++)uv.setX(i,uv.getX(i)*3);
+    mesh(a,g,joinMat,0,2.04,.015);
+  }
+  // Wardrobe and entry cabinets: applied fronts, handles, and wood grain, in place.
+  function cabinetFace(x,y,z,w,h){
+    for(const s of [-1,1]){
+      box(odgaRoot,w*.46,h*.90,.05,warmWood,x+s*w*.245,y,z,.02);
+      box(odgaRoot,w*.37,h*.76,.022,wood,x+s*w*.245,y,z-.038,.012);
+      rod(odgaRoot,[x+s*.17,y-.18,z-.083],[x+s*.17,y+.18,z-.083],.033,brass);
+    }
+  }
+  cabinetFace(-13,2.5,21.065,3.94,4.94);cabinetFace(-25,1.1,-3.935,4.33,2.14);cabinetFace(-25,1.1,4.065,4.33,2.14);
+  cabinetFace(25.6,.6,22.47,3.15,1.15);
+  // Correct the existing TV casing to agree with the existing screen orientation.
+  const tv=at(26.8,1.4,17),screen=at(26.66,1.4,17);if(tv)tv.rotation.y=-Math.PI/2;
+  if(screen){screen.material=new THREE.MeshStandardMaterial({map:scenic,color:'#789c9a',roughness:.29,metalness:.13,emissive:'#4c7b73',emissiveIntensity:.10});}
+  // Rounded bath shell with a real opening, inside the original 6 x 3 footprint.
+  function roundedPath(shape,w,d,r){
+    const x=-w/2,y=-d/2;shape.moveTo(x+r,y);shape.lineTo(x+w-r,y);shape.quadraticCurveTo(x+w,y,x+w,y+r);shape.lineTo(x+w,y+d-r);shape.quadraticCurveTo(x+w,y+d,x+w-r,y+d);shape.lineTo(x+r,y+d);shape.quadraticCurveTo(x,y+d,x,y+d-r);shape.lineTo(x,y+r);shape.quadraticCurveTo(x,y,x+r,y);return shape;
+  }
+  const bath=at(-22,.9,-24),water=at(-22,1.6,-24);
+  if(bath){const shape=roundedPath(new THREE.Shape(),6,3,.57),hole=roundedPath(new THREE.Path(),5.32,2.32,.43);shape.holes.push(hole);const geo=new THREE.ExtrudeGeometry(shape,{depth:1.6,bevelEnabled:false,curveSegments:6,steps:1});geo.translate(0,0,-.8);geo.rotateX(-Math.PI/2);bath.geometry=geo;bath.material=ceramic;}
+  const waterMap=tex(256,256,(c,w,h)=>{
+    c.fillStyle='#6eaaa9';c.fillRect(0,0,w,h);c.lineWidth=2;for(let i=0;i<13;i++){c.strokeStyle='rgba(224,242,217,.18)';c.beginPath();c.ellipse(120+i*2,135,20+i*12,10+i*7,.1,0,tau);c.stroke();}
+  });
+  if(water){water.geometry=rounded(5.28,.06,2.28,.035);water.material=mat('#ffffff',.16,.04,waterMap);}
+  rod(odgaRoot,[-19.48,1.65,-24],[-19.48,2.18,-24],.065,brass);rod(odgaRoot,[-19.48,2.18,-24],[-19.85,2.18,-24],.065,brass);
+  const washerDoor=at(-25,1.2,-18.2);replaceMaterial(washerDoor,mat('#537b83',.19,.27));
+  mesh(odgaRoot,new THREE.TorusGeometry(.79,.083,10,28),brass,-25,1.2,-18.415,true);
+  box(odgaRoot,2.10,.31,.045,mat('#d7ddd1',.4),-25,2.10,-18.13,.04);
+  const knob=cyl(odgaRoot,.13,.13,.07,brass,-24.29,2.1,-18.19,16);knob.rotation.x=Math.PI/2;
+  box(odgaRoot,.50,.16,.026,dark,-25.38,2.1,-18.169,.018);
+  // A quiet mirror panel behind the existing washbasin.
+  const bathMirror=anchor(0,-29.895,0);box(bathMirror,2.66,2.7,.08,brass,-15.5,3.18,.038,.055);
+  const mirrorMat=new THREE.MeshStandardMaterial({color:'#bed0c6',metalness:.68,roughness:.17});
+  box(bathMirror,2.48,2.52,.027,mirrorMat,-15.5,3.18,.095,.065);
+  // Toys keep their original places, with enough detail to read at the overhead camera.
+  for(const sx of [-.72,.72])for(const z of [-13.51,-12.49]){const w=cyl(odgaRoot,.28,.28,.17,dark,22+sx,.31,z,14);w.rotation.x=Math.PI/2;}
+  for(const sx of [-.25,.25])sph(odgaRoot,.094,mat('#30352e',.52),16+sx,2.20,-13.40);
+  sph(odgaRoot,.23,fabric('#d1af7f'),16,1.97,-13.36,1,.74,.55);sph(odgaRoot,.079,mat('#443c30'),16,2.06,-13.21);
+  for(const sx of [-.76,.76])sph(odgaRoot,.32,fabric('#b48a5b'),16+sx,1.0,-13.95,.8,1.1,.85);
+  for(const sx of [-.42,.42])sph(odgaRoot,.32,fabric('#c19a69'),16+sx,.31,-13.55,.85,.7,1.2);
+  const stripeMat=mat('#e9dec1',.57);for(const axis of [0,1]){const band=mesh(odgaRoot,new THREE.TorusGeometry(1.005,.025,7,36),stripeMat,20,1,-17);if(axis)band.rotation.y=Math.PI/2;else band.rotation.x=Math.PI/2;}
+  // Full sleeve shapes on the original coat blocks; no new clothes occupy the floor.
+  for(const s of [-1,1]){
+    const z=1+s*.9,coat=at(-19,3,z),fm=fabric(s>0?'#69746f':'#a0695a');replaceMaterial(coat,fm);
+    for(const side of [-1,1]){const sleeve=mesh(odgaRoot,new THREE.CapsuleGeometry(.17,1.39,5,10),fm,-19+side*.70,3.03,z,true);sleeve.rotation.z=side*.17;}
+    box(odgaRoot,.16,.35,.11,fabric('#c9b596'),-19,4.15,z+.45,.025);
+    for(let i=0;i<3;i++)sph(odgaRoot,.043,brass,-19,3.49-i*.42,z+.422);
+  }
+  // Room fabric lamp and white bath fixtures get plausible, modest material responses.
+  old.forEach(o=>{if(o.material?.map){o.material.map.colorSpace=THREE.SRGBColorSpace;o.material.map.anisotropy=4;} });
+  kitchen.add(odgaRoot);
+  odgaRoot.userData.odgaStaticMeshCount=0;odgaRoot.traverse(o=>{if(o.isMesh)odgaRoot.userData.odgaStaticMeshCount++;});
+  return odgaRoot;
+}
+
+decorateObzhoraApartment(kitchen, SAFES, walls);
+
 function safeRoom(v) { const s = arenaScale;
   return SAFES.find(R => v.x > R.x0 * s && v.x < R.x1 * s && v.z > R.z0 * s && v.z < R.z1 * s) || null; }
 function inSafe(v) { return !!safeRoom(v); }
@@ -563,7 +958,7 @@ function makeRoomba(hex) {
   brush2.position.set(-0.8, 0.1, 0.62); g.add(brush2);
   const shield = new THREE.Mesh(new THREE.SphereGeometry(1.35, 18, 14), new THREE.MeshBasicMaterial({ color: 0x66d9ff, transparent: true, opacity: 0.22 })); shield.position.y = 0.5; g.add(shield);
   g.userData = { brush, brush2, shield, skinMeshes: [body, top] };
-  return g;
+  return astraVacuum(g, hex);
 }
 function applySkin(mesh, skin) {
   if (skin.gold) { for (const m of mesh.userData.skinMeshes) m.material = new THREE.MeshStandardMaterial({ color: 0xffd23b, metalness: .95, roughness: .18, emissive: 0x3a2600, emissiveIntensity: .25 }); }
@@ -703,8 +1098,8 @@ let matchLeft = MATCH;
 
 function resetWorld() {
   arenaScale = 1; kitchen.scale.setScalar(1);           // новая игра — кухня снова обычная
-  vacuums.forEach(v => scene.remove(v.mesh)); vacuums = [];
-  pellets.length = 0; boosters.forEach(b => scene.remove(b.mesh)); boosters.length = 0; lollis.forEach(l => scene.remove(l.mesh)); lollis.length = 0;
+  vacuums.forEach(v => {scene.remove(v.mesh);astraDispose(v.mesh);}); vacuums = [];
+  pellets.forEach(p => scene.remove(p.mesh)); pellets.length = 0; boosters.forEach(b => scene.remove(b.mesh)); boosters.length = 0; lollis.forEach(l => scene.remove(l.mesh)); lollis.length = 0;
   shields.forEach(s => scene.remove(s.mesh)); shields.length = 0;
   // игрок (с выбранным нарядом)
   const skin = SKINS[chosenColor] || SKINS[0]; playerInvisible = !!skin.invis;
@@ -887,9 +1282,9 @@ function renderCoop() {
   const w = Math.floor(_sz.x), h = Math.floor(_sz.y), hh = Math.floor(h / 2);
   renderer.setScissorTest(true);
   renderer.setViewport(0, hh, w, h - hh); renderer.setScissor(0, hh, w, h - hh);
-  camera.aspect = w / (h - hh); camera.updateProjectionMatrix(); renderer.render(scene, camera);
+  camera.aspect = w / (h - hh); camera.updateProjectionMatrix(); prepareObzhoraView(camera); renderer.render(scene, camera);
   renderer.setViewport(0, 0, w, hh); renderer.setScissor(0, 0, w, hh);
-  camera2.aspect = w / hh; camera2.updateProjectionMatrix(); renderer.render(scene, camera2);
+  camera2.aspect = w / hh; camera2.updateProjectionMatrix(); prepareObzhoraView(camera2); renderer.render(scene, camera2);
   renderer.setScissorTest(false); renderer.setViewport(0, 0, w, h);
 }
 function camFor(player, camera, dt) {
@@ -906,13 +1301,11 @@ function camFor(player, camera, dt) {
   camera.position.z += (tz - camera.position.z) * Math.min(1, dt * 4);
   camera.lookAt(player.x, 0.5, player.z);
   // 🏠 когда камера поднялась выше потолка — прячем потолок и лампу, иначе они закрывают вид
-  const высоко = camera.position.y > CEIL - 1.5;
-  if (ceiling) ceiling.visible = !высоко;
-  if (потолочнаяЛампа) потолочнаяЛампа.visible = !высоко;
+  // Потолок выбирается отдельно перед отрисовкой каждого экрана.
   // 🌑 огромный пылесос отбрасывал тень на пол-кухни, и всё темнело (жалоба Марка 06.09).
   // Крупным теней не рисуем — света на кухне сразу хватает.
   for (const v of vacuums) { const крупный = v.r > 5;
-    v.mesh.traverse(o => { if (o.isMesh && o.castShadow !== undefined) o.castShadow = !крупный; }); }
+    v.mesh.traverse(o => { if (o.isMesh && o.castShadow !== undefined) o.castShadow = !крупный && !o.material.transparent; }); }
 }
 
 // ==== HUD ====
@@ -940,10 +1333,10 @@ function fadeBig() { el('bigMsg').style.opacity = '0'; }
 
 // ==== меню-превью ====
 function refreshPreview() {
-  if (previewVac) scene.remove(previewVac);
+  if (previewVac) {astraGallery.remove(previewVac);astraDispose(previewVac);}
   const skin = SKINS[chosenColor] || SKINS[0];
   previewVac = makeRoomba(skin.hex); applySkin(previewVac, skin); previewVac.userData.shield.visible = false;
-  previewVac.position.set(0, 0.2, 0); previewVac.scale.setScalar(3.4); scene.add(previewVac); previewVac.visible = (state === 'menu');
+  previewVac.position.set(0, 0.2, 0); previewVac.scale.setScalar(3.4); astraGallery.add(previewVac); previewVac.visible = (state === 'menu');
 }
 function showMenu() {
   state = 'menu'; playing = false; fadeBig();
@@ -1038,8 +1431,10 @@ function loop(t) {
   } else if (state === 'menu' && previewVac) {
     time += dt; previewVac.rotation.y += dt * 0.8; previewVac.position.y = 0.2 + Math.sin(time * 1.6) * 0.15;
   }
-  if (coop && player2 && state === 'play') renderCoop();
-  else { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.render(scene, camera); }
+  renderer.shadowMap.needsUpdate=true;
+  if (state === 'menu') astraRenderMenu();
+  else if (coop && player2 && state === 'play') renderCoop();
+  else { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); prepareObzhoraView(camera); renderer.render(scene, camera); }
 }
 
 // ==== конфетти ====
@@ -1172,60 +1567,88 @@ showMenu();
 </script>
 
 <script>
-// Игра стартует МГНОВЕННО из памяти телефона и работает без интернета.
-// Если интернет есть — проверяем крошечный version.json и обновляемся сами.
+/* scoped PWA updater: the installed offline copy stays until a verified replacement activates. */
 (function () {
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(function(){}));
-  }
-  function баннер(текст) {
+  var scope = new URL('./', location.href).href;
+  var pending = '', checking = false, registrationPromise = null;
+  function banner(text) {
     var d = document.getElementById('updBanner');
     if (!d) { d = document.createElement('div'); d.id = 'updBanner';
-      d.style.cssText = 'position:fixed;left:50%;top:12px;transform:translateX(-50%);z-index:99999;' +
-        'background:#0b1220ee;color:#7dd3fc;font:900 15px system-ui;padding:10px 18px;border-radius:14px;' +
-        'border:2px solid #7dd3fc55;box-shadow:0 8px 24px #0009';
+      d.style.cssText = 'position:fixed;left:50%;top:12px;transform:translateX(-50%);z-index:99999;background:#0b1220ee;color:#7dd3fc;font:900 15px system-ui;padding:10px 18px;border-radius:14px;border:2px solid #7dd3fc55;box-shadow:0 8px 24px #0009';
       document.body.appendChild(d); }
-    d.textContent = текст;
-    return d;
+    d.textContent = text; return d;
   }
-  async function applyUpdate() {
-    баннер('🔄 Обновляю игру…');
+  function register() {
+    if (!('serviceWorker' in navigator)) return Promise.resolve(null);
+    if (!registrationPromise) registrationPromise = navigator.serviceWorker.register(new URL('sw.js', scope).href,
+      { scope: scope, updateViaCache: 'none' }).catch(function (e) { registrationPromise = null; throw e; });
+    return registrationPromise;
+  }
+  function navigate(version) {
+    var url = new URL(location.href); url.searchParams.set('v', version);
+    if (url.href === location.href) location.reload(); else location.replace(url.href);
+  }
+  if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('controllerchange', function () {
+    if (pending) navigate(pending);
+  });
+  async function version() {
+    var url = new URL('version.json', scope); url.searchParams.set('t', Date.now());
+    var response = await fetch(url.href, { cache: 'no-store' });
+    if (!response.ok) throw new Error('version unavailable');
+    var value = await response.json();
+    if (!value || typeof value.v !== 'string' || !/^[a-zA-Z0-9._-]{1,80}$/.test(value.v)) throw new Error('invalid version');
+    return value.v;
+  }
+  async function applyUpdate(next) {
     try {
-      const ks = await caches.keys();
-      await Promise.all(ks.map(function (k) { return caches.delete(k); }));
-      if ('serviceWorker' in navigator) {
-        const rs = await navigator.serviceWorker.getRegistrations();
-        await Promise.all(rs.map(function (r) { return r.unregister(); }));
+      if (typeof next !== 'string') next = await version();
+      if (next === window.__APP_VER) return false;
+      if (pending === next) return true;
+      pending = next; banner('🔄 Обновляю игру…');
+      var reg = await register();
+      if (reg) {
+        // The worker verifies index.html, fills its new cache, then takes over atomically.
+        await reg.update();
+      } else {
+        var target = new URL('index.html', scope); target.searchParams.set('v', next);
+        var response = await fetch(target.href, { cache: 'reload' });
+        if (!response.ok) throw new Error('update unavailable');
+        var match = (await response.text()).match(/window\.__APP_VER\s*=\s*["']([^"']+)["']/);
+        if (!match || match[1] !== next) throw new Error('update not ready');
+        navigate(next);
       }
-    } catch (_) {}
-    // ⚠️ Простой location.reload() может взять СТАРЫЙ html из кэша браузера,
-    // и обновление «не приходит» (жалоба Марка 23.08). Перезагружаемся по новому адресу.
-    setTimeout(function () {
-      location.replace(location.pathname + '?v=' + Date.now());
-    }, 400);
-  }
-  window.__forceUpdate = applyUpdate;
-  async function checkVersion(показать) {
-    try {
-      const r = await fetch('version.json?t=' + Date.now(), { cache: 'no-store' });
-      if (!r.ok) throw 0;
-      const j = await r.json();
-      if (!j || !j.v) throw 0;
-      if (j.v === window.__APP_VER) { if (показать) { const d = баннер('✅ У тебя самая свежая версия');
-          setTimeout(function(){ d.remove(); }, 2500); } return false; }
-      if (window.__onUpdate) window.__onUpdate(applyUpdate); else applyUpdate();
+      setTimeout(function () { if (pending) { pending = ''; var d = document.getElementById('updBanner'); if (d) d.remove(); } }, 20000);
       return true;
     } catch (_) {
-      if (показать) { const d = баннер('📴 Нет интернета — обновить не выйдет');
-        setTimeout(function(){ d.remove(); }, 2500); }
-      return false;
+      pending = ''; var d = banner('📴 Обновление пока недоступно — игра работает офлайн');
+      setTimeout(function () { d.remove(); }, 3500); return false;
     }
   }
+  async function checkVersion(show) {
+    if (checking || pending) return false; checking = true;
+    try {
+      var next = await version();
+      if (next === window.__APP_VER) {
+        if (show === true) { var d = banner('✅ У тебя самая свежая версия'); setTimeout(function () { d.remove(); }, 2500); }
+        return false;
+      }
+      var action = function () { return applyUpdate(next); };
+      if (window.__onUpdate) window.__onUpdate(action); else await action();
+      return true;
+    } catch (_) {
+      if (show === true) { var d = banner('📴 Нет интернета — игра работает офлайн'); setTimeout(function () { d.remove(); }, 2500); }
+      return false;
+    } finally { checking = false; }
+  }
+  window.__forceUpdate = function () { return applyUpdate(); };
   window.__checkUpdate = function () { return checkVersion(true); };
-  window.addEventListener('load', function () { setTimeout(checkVersion, 300); setTimeout(checkVersion, 3000); });
+  window.addEventListener('load', function () {
+    register().catch(function () {});
+    setTimeout(checkVersion, 500); setTimeout(checkVersion, 4000);
+  });
   document.addEventListener('visibilitychange', function () { if (!document.hidden) checkVersion(); });
-  addEventListener('online', checkVersion);
-  setInterval(checkVersion, 60 * 1000);
+  window.addEventListener('online', function () { checkVersion(); });
+  setInterval(checkVersion, 60000);
 })();
 </script>
 </body>
