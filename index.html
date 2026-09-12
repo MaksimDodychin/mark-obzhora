@@ -48,6 +48,20 @@
   #colorPop.show { display: flex; gap: 8px; flex-wrap: wrap; width: 190px; }
   #colorPop .sw { width: 38px; height: 38px; }
   #dpad { position: fixed; left: 20px; bottom: 24px; z-index: 16; display: none; grid-template-columns: repeat(3, 64px); grid-template-rows: repeat(3, 64px); gap: 7px; touch-action: none; }
+  /* ═══ 👥 ВДВОЁМ (заказ Марка 12.09.2026): сверху 1-й, снизу 2-й ═══ */
+  body.coop #dpad.show { grid-template-columns: repeat(3, 48px); grid-template-rows: repeat(3, 48px); gap: 5px; left: 12px; bottom: calc(50% + 10px); }
+  #dpad2 { position: fixed; left: 12px; bottom: 12px; z-index: 16; display: none; grid-template-columns: repeat(3, 48px); grid-template-rows: repeat(3, 48px); gap: 5px; touch-action: none; }
+  body.coop #dpad2.show { display: grid; }
+  #dpad2 .dbtn { font-size: 20px; }
+  #btnU2 { grid-column: 2; grid-row: 1; } #btnL2 { grid-column: 1; grid-row: 2; }
+  #btnR2 { grid-column: 3; grid-row: 2; } #btnD2 { grid-column: 2; grid-row: 3; }
+  #splitLine { position: fixed; left: 0; right: 0; top: 50%; height: 4px; margin-top: -2px; z-index: 15;
+    background: linear-gradient(90deg,#0000,#ffffffcc,#0000); display: none; pointer-events: none; }
+  body.coop #splitLine { display: block; }
+  .coopTag { position: fixed; right: 12px; z-index: 15; display: none; background: #0e1b38cc;
+    border: 2px solid #ffffff33; border-radius: 12px; padding: 4px 10px; font-weight: 900; font-size: 14px; }
+  .coopTag.p1 { top: 10px; border-color: #7CFC9B88; } .coopTag.p2 { top: calc(50% + 10px); border-color: #ffd34d88; }
+  body.coop .coopTag { display: block; } body.coop #hud { display: none !important; }
   #dpad.show { display: grid; }
   .dbtn { display: flex; align-items: center; justify-content: center; font-size: 28px; color: #fff; background: radial-gradient(circle at 35% 30%, #5a6a9a, #2c3350); border: 2px solid #ffffff55; border-radius: 15px; user-select: none; touch-action: none; box-shadow: 0 3px 10px #0007; }
   .dbtn:active, .dbtn.on { transform: scale(.92); background: radial-gradient(circle at 35% 30%, #8ea0d6, #45507a); }
@@ -81,7 +95,7 @@
   <link rel="apple-touch-icon-precomposed" sizes="180x180" href="apple-touch-icon.png">
   <meta name="msapplication-TileImage" content="icon-192.png">
   <meta name="msapplication-TileColor" content="#2a2438">
-  <script>window.__APP_VER = "8589dc7abd";</script>
+  <script>window.__APP_VER = "93d230646d";</script>
 </head>
 <body>
 <div id="err"></div>
@@ -92,6 +106,10 @@
 <div id="colorPop"></div>
 <!-- крестовина управления (телефон), как в Паучьем лабиринте -->
 <div id="dpad"><div class="dbtn" id="btnU">▲</div><div class="dbtn" id="btnL">◀</div><div class="dbtn" id="btnR">▶</div><div class="dbtn" id="btnD">▼</div></div>
+<div id="dpad2"><div class="dbtn" id="btnU2">▲</div><div class="dbtn" id="btnL2">◀</div><div class="dbtn" id="btnR2">▶</div><div class="dbtn" id="btnD2">▼</div></div>
+<div id="splitLine"></div>
+<div class="coopTag p1">🟢 1-й · <span id="sz1">0</span></div>
+<div class="coopTag p2">🟡 2-й · <span id="sz2">0</span></div>
 <!-- выход в меню -->
 <button id="menuBtn" class="hidden">🏠 В меню</button>
 
@@ -106,6 +124,7 @@
   <div class="mbot">
     <div class="swatches" id="swatches"></div>
     <div class="row"><button class="btn green" id="playBtn">▶ Играть</button><button class="btn red" id="achBtn">🏆 Достижения</button></div>
+    <div class="row"><button class="btn green" id="playBtn2">👥 Вдвоём на одном экране</button></div>
     <div class="sub" style="opacity:.6;font-size:12px">Телефон: кнопки-стрелки ▲◀▶▼ снизу слева. Компьютер: мышь или WASD/стрелки.</div>
   </div>
 </div>
@@ -611,6 +630,12 @@ function respawnShieldBonus(s) {                     // уезжает пода�
 
 // ==== пылесосы ====
 let vacuums = [], player = null;
+/* ═══ 👥 ВДВОЁМ НА ОДНОМ ЭКРАНЕ (заказ Марка 12.09.2026) ═══
+   Экран пополам: сверху 1-й пылесос, снизу 2-й, у каждого свой крестик в нижнем левом
+   углу своей половины. Ботов нет — вы едите мусор и пытаетесь съесть друг друга.
+   Кто больше к концу пяти минут (или съел соперника) — тот и победил. */
+let coop = false, player2 = null;
+const camera2 = new THREE.PerspectiveCamera(55, 1, 0.1, 400);
 
 function makeVac(colHex, isPlayer) {
   const mesh = makeRoomba(colHex); scene.add(mesh);
@@ -638,14 +663,34 @@ function bindDpad(id, key) {
   e.addEventListener('pointercancel', release); e.addEventListener('lostpointercapture', release);
 }
 bindDpad('btnU', 'u'); bindDpad('btnD', 'd'); bindDpad('btnL', 'l'); bindDpad('btnR', 'r');
+const dpad2 = { u: 0, d: 0, l: 0, r: 0 };
+function bindDpad2(id, key) {
+  const e = el(id);
+  const press = ev => { ev.preventDefault(); try { e.setPointerCapture(ev.pointerId); } catch (_) {} dpad2[key] = 1; e.classList.add('on'); };
+  const release = () => { dpad2[key] = 0; e.classList.remove('on'); };
+  e.addEventListener('pointerdown', press); e.addEventListener('pointerup', release);
+  e.addEventListener('pointercancel', release); e.addEventListener('lostpointercapture', release);
+}
+bindDpad2('btnU2', 'u'); bindDpad2('btnD2', 'd'); bindDpad2('btnL2', 'l'); bindDpad2('btnR2', 'r');
 const IS_TOUCH = ('ontouchstart' in window) || navigator.maxTouchPoints > 0 || matchMedia('(pointer:coarse)').matches;
-function showJoy(on) { el('dpad').classList.toggle('show', !!(on && IS_TOUCH)); if (!on) { dpad.u = dpad.d = dpad.l = dpad.r = 0; } }
+function showJoy(on) { el('dpad').classList.toggle('show', !!(on && IS_TOUCH));
+  el('dpad2').classList.toggle('show', !!(on && IS_TOUCH && coop));
+  if (!on) { dpad.u = dpad.d = dpad.l = dpad.r = 0; dpad2.u = dpad2.d = dpad2.l = dpad2.r = 0; } }
+function playerDir2() {
+  let dx = dpad2.r - dpad2.l, dz = dpad2.d - dpad2.u;
+  if (keys.has('KeyW')) dz -= 1;
+  if (keys.has('KeyS')) dz += 1;
+  if (keys.has('KeyA')) dx -= 1;
+  if (keys.has('KeyD')) dx += 1;
+  if (dx || dz) { const L = Math.hypot(dx, dz); return { x: dx / L, z: dz / L }; }
+  return { x: 0, z: 0 };
+}
 function playerDir() {
   let dx = dpad.r - dpad.l, dz = dpad.d - dpad.u;
-  if (keys.has('KeyW') || keys.has('ArrowUp')) dz -= 1;
-  if (keys.has('KeyS') || keys.has('ArrowDown')) dz += 1;
-  if (keys.has('KeyA') || keys.has('ArrowLeft')) dx -= 1;
-  if (keys.has('KeyD') || keys.has('ArrowRight')) dx += 1;
+  if ((!coop && keys.has('KeyW')) || keys.has('ArrowUp')) dz -= 1;
+  if ((!coop && keys.has('KeyS')) || keys.has('ArrowDown')) dz += 1;
+  if ((!coop && keys.has('KeyA')) || keys.has('ArrowLeft')) dx -= 1;
+  if ((!coop && keys.has('KeyD')) || keys.has('ArrowRight')) dx += 1;
   if (dx || dz) { const L = Math.hypot(dx, dz); return { x: dx / L, z: dz / L }; }
   if (ptr.active && !ptr.touch) { const sx = (ptr.x / innerWidth) * 2 - 1, sy = (ptr.y / innerHeight) * 2 - 1; const L = Math.hypot(sx, sy); if (L > 0.12) return { x: sx / Math.max(L, 1), z: sy / Math.max(L, 1) }; }
   return { x: 0, z: 0 };
@@ -664,8 +709,17 @@ function resetWorld() {
   // игрок (с выбранным нарядом)
   const skin = SKINS[chosenColor] || SKINS[0]; playerInvisible = !!skin.invis;
   player = makeVac(skin.hex, true); applySkin(player.mesh, skin); player.x = 0; player.z = 0; player.mesh.position.set(0, 0, 0); vacuums.push(player);
-  // боты
-  for (let i = 0; i < BOT_N; i++) { const c = Math.floor(Math.random() * BASE.length); const b = makeVac(BASE[c].hex, false); b.size = rand(8, 16); b.r = rOf(b.size); b.mesh.scale.setScalar(b.r); vacuums.push(b); }
+  if (player2) { scene.remove(player2.mesh); player2 = null; }
+  if (coop) {                                   // 👥 второй живой игрок вместо ботов
+    player.name = '🟢 1-й'; player.x = -5; player.mesh.position.set(-5, 0, 0);
+    const skin2 = SKINS.find(k => k !== skin && !k.invis) || skin;
+    player2 = makeVac(skin2.hex, true); applySkin(player2.mesh, skin2);
+    player2.p2 = true; player2.name = '🟡 2-й';
+    player2.x = 5; player2.z = 0; player2.mesh.position.set(5, 0, 0);
+    vacuums.push(player2);
+  } else {
+    for (let i = 0; i < BOT_N; i++) { const c = Math.floor(Math.random() * BASE.length); const b = makeVac(BASE[c].hex, false); b.size = rand(8, 16); b.r = rOf(b.size); b.mesh.scale.setScalar(b.r); vacuums.push(b); }
+  }
   // еда
   for (let i = 0; i < PELLET_N; i++) { const mesh = new THREE.Mesh(foodGeos[0], foodMats[0]); scene.add(mesh); const p = { mesh, x: 0, z: 0, gain: 1.5 }; spawnPelletAt(p); pellets.push(p); }
   // ускорители
@@ -715,9 +769,11 @@ function resetBot(b) {
   b.mesh.position.set(b.x, 0, b.z); b.mesh.scale.setScalar(b.r);
   b.vx = 0; b.vz = 0; b.boost = 0;
 }
-function resetPlayer() {
-  player.size = START; player.r = rOf(START); player.x = rand(-AR() + 6, AR() - 6); player.z = rand(-AR() + 6, AR() - 6);
-  showBig('Тебя засосало! 😵', '#ff8a8a'); setTimeout(fadeBig, 900); Sound.lose();
+function resetPlayer(v) {
+  const P = v || player;
+  P.size = START; P.r = rOf(START); P.x = rand(-AR() + 6, AR() - 6); P.z = rand(-AR() + 6, AR() - 6);
+  showBig(coop ? (P.name + ' засосало! 😵') : 'Тебя засосало! 😵', '#ff8a8a');
+  setTimeout(fadeBig, 900); Sound.lose();
 }
 function place() { return vacuums.slice().sort((a, b) => b.size - a.size).indexOf(player) + 1; }
 
@@ -811,7 +867,7 @@ function resolveEating() {
 }
 function swallow(eater, prey) {
   grow(eater, prey.size);                       // размер бота ПОЛНОСТЬЮ переходит к тебе
-  if (prey.isPlayer) { resetPlayer(); }
+  if (prey.isPlayer) { resetPlayer(prey); }
   else {
     if (eater.isPlayer) {
       Ach.stat('botsEaten', 1);
@@ -824,7 +880,19 @@ function swallow(eater, prey) {
 
 // ==== камера следует за игроком и ОТЪЕЗЖАЕТ по мере роста, чтобы всегда было видно себя
 // (просьба Марка 06.09: раньше камера упиралась в потолок и стены, и большой пылесос не влезал) ====
-function updateCamera(dt) {
+function updateCamera(dt) { camFor(player, camera, dt); if (coop && player2) camFor(player2, camera2, dt); }
+const _sz = new THREE.Vector2();
+function renderCoop() {
+  renderer.getSize(_sz);
+  const w = Math.floor(_sz.x), h = Math.floor(_sz.y), hh = Math.floor(h / 2);
+  renderer.setScissorTest(true);
+  renderer.setViewport(0, hh, w, h - hh); renderer.setScissor(0, hh, w, h - hh);
+  camera.aspect = w / (h - hh); camera.updateProjectionMatrix(); renderer.render(scene, camera);
+  renderer.setViewport(0, 0, w, hh); renderer.setScissor(0, 0, w, hh);
+  camera2.aspect = w / hh; camera2.updateProjectionMatrix(); renderer.render(scene, camera2);
+  renderer.setScissorTest(false); renderer.setViewport(0, 0, w, h);
+}
+function camFor(player, camera, dt) {
   // r = √size·0.32. Камера поднимается умеренно: себя видно целиком, но кухня не превращается
   // в карту с высоты птичьего полёта (Марк: «не должна отдаляться так далеко»)
   const H = clamp(12 + player.r * 3.0, 12, 62);
@@ -891,7 +959,9 @@ function startGame(col) {
   chosenColor = col != null ? col : chosenColor; state = 'play'; playing = true; won = false;
   el('menu').classList.add('hidden'); el('achv').classList.add('hidden'); el('hud').classList.remove('hidden'); el('hint').classList.remove('hidden');
   el('colorBtn').classList.remove('hidden'); el('menuBtn').classList.remove('hidden'); el('colorPop').classList.remove('show'); showJoy(true);
-  el('hint').textContent = '⏱ 5 минут! Ешь мусор и ботов, держись на 1-м месте к концу времени.';
+  el('hint').textContent = coop
+    ? '👥 Вдвоём! ⏱ 5 минут: ешь мусор, расти и попробуй съесть соперника. Кто больше — тот и выиграл.'
+    : '⏱ 5 минут! Ешь мусор и ботов, держись на 1-м месте к концу времени.';
   el('resultCard').classList.add('hidden');
   matchLeft = MATCH;
   kitchen.visible = true; if (previewVac) previewVac.visible = false;
@@ -953,10 +1023,12 @@ function loop(t) {
       if (v.shieldT <= 0 && v.isPlayer) { showBig('🛡 Защита кончилась!', '#fca5a5'); setTimeout(fadeBig, 900); }
     }
     stepVac(player, playerDir(), dt);
+    if (coop && player2) stepVac(player2, playerDir2(), dt);
     Ach.setMax('maxSize', player.size);
     const комн = safeRoom(player), ns = !!комн;
     if (ns && !player.wasSafe) { showBig((комн.имя || '🏠 Комната') + ' — тут не съедят!', '#c9a6ff'); setTimeout(fadeBig, 900); Ach.stat('safeUsed', 1); } player.wasSafe = ns;
     for (const v of vacuums) { if (v.isPlayer) continue; stepVac(v, botThink(v, dt), dt); }
+    if (coop && player2) { el('sz1').textContent = Math.round(player.size); el('sz2').textContent = Math.round(player2.size); }
     for (const v of vacuums) eatPellets(v);
     resolveEating();
     // 👑 корона над самым большим пылесосом
@@ -966,7 +1038,8 @@ function loop(t) {
   } else if (state === 'menu' && previewVac) {
     time += dt; previewVac.rotation.y += dt * 0.8; previewVac.position.y = 0.2 + Math.sin(time * 1.6) * 0.15;
   }
-  renderer.render(scene, camera);
+  if (coop && player2 && state === 'play') renderCoop();
+  else { camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.render(scene, camera); }
 }
 
 // ==== конфетти ====
@@ -1045,7 +1118,8 @@ function applyPlayerSkin() {
 
 // ==== кнопки ====
 function goFS() { const e = document.documentElement; const rf = e.requestFullscreen || e.webkitRequestFullscreen; if (rf && !document.fullscreenElement) { try { const p = rf.call(e); if (p && p.catch) p.catch(() => {}); } catch (_) {} } }
-el('playBtn').onclick = () => { Sound.init(); goFS(); startGame(chosenColor); };
+el('playBtn').onclick = () => { coop = false; document.body.classList.remove('coop'); Sound.init(); goFS(); startGame(chosenColor); };
+el('playBtn2').onclick = () => { coop = true; document.body.classList.add('coop'); Sound.init(); goFS(); startGame(chosenColor); };
 el('achBtn').onclick = () => { Sound.init(); el('menu').classList.add('hidden'); el('achv').classList.remove('hidden'); buildAchScreen(); };
 el('achBack').onclick = () => { el('achv').classList.add('hidden'); el('menu').classList.remove('hidden'); buildSwatches(); };
 el('fsBtn').onclick = () => { if (document.fullscreenElement) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); } else goFS(); };
@@ -1057,6 +1131,15 @@ updateMusBtn();
 
 // ==== отладка ====
 window.__dbg = {
+  // ── 👥 вдвоём ──
+  get coop() { return coop; },
+  get split() { return document.body.classList.contains('coop'); },
+  get bots() { return vacuums.filter(v => !v.isPlayer).length; },
+  vac(w) { const P = (w === 2 ? player2 : player); if (!P) return null;
+    return { x: +P.x.toFixed(1), z: +P.z.toFixed(1), size: Math.round(P.size) }; },
+  startCoop() { coop = true; document.body.classList.add('coop'); startGame(chosenColor); return coop; },
+  key(k, v) { if (v) keys.add(k); else keys.delete(k); return keys.has(k); },
+  get pad2() { const e = el('dpad2'); return !!e && e.classList.contains('show'); },
   start: (c) => startGame(c || 0),
   state: () => ({ state, playing, won, size: Math.round(player ? player.size : 0), shield: player ? player.size < SHIELD : true, bots: vacuums.filter(v => !v.isPlayer).length, invis: playerInvisible, left: Math.round(matchLeft), place: player ? place() : 0 }),
   setTime: (s) => { matchLeft = s; },
